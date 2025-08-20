@@ -1,11 +1,10 @@
-const gatherHandler = require("./gather");
-const chatHandler = require("./chat");
 const loginHandler = require("./login")
+const accountCreationHandler = require("./createAccount")
+
 
 const handlers = {
-  gather: gatherHandler,
-  chat: chatHandler,
   login: loginHandler,
+  createAccount: accountCreationHandler
   // add more actions here
 };
 

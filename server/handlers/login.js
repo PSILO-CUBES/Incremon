@@ -1,7 +1,7 @@
 const { v4: uuidv4 } = require("uuid");
-const playersDB = new Map();
+const dbModule = require("../db");
 
-module.exports = (ws, data) => {
+module.exports = async (ws, data) => {
     const username = data.username;
     if (!username) {
         return ws.send(JSON.stringify({
@@ -10,26 +10,33 @@ module.exports = (ws, data) => {
         }));
     }
 
-    // Check if user already exists
-    let player = Array.from(playersDB.values()).find(p => p.username === username);
+    const db = dbModule.getDb();
+    const playersCollection = db.collection("players");
 
-    if (!player) {
-        // New player signup
-        const playerId = uuidv4();
-        player = { id: playerId, username, resources: {} };
-        playersDB.set(playerId, player);
-        console.log(`🆕 Created new player: ${username} (${playerId})`);
-    } else {
-        console.log(`🔑 Existing player logged in: ${username}`);
+    try {
+        let player = await playersCollection.findOne({ username });
+
+        if (!player) {
+            const playerId = uuidv4();
+            player = { id: playerId, username, resources: {} };
+            await playersCollection.insertOne(player);
+            console.log(`🆕 Created new player: ${username} (${playerId})`);
+        } else {
+            console.log(`🔑 Existing player logged in: ${username}`);
+        }
+
+        ws.playerId = player.id;
+
+        ws.send(JSON.stringify({
+            event: "loginSuccess",
+            playerId: player.id,
+            username: player.username
+        }));
+    } catch (err) {
+        console.error("MongoDB error:", err);
+        ws.send(JSON.stringify({
+            event: "loginFailed",
+            message: "Server error"
+        }));
     }
-
-    // Attach player info to ws so future messages know who it is
-    ws.playerId = player.id;
-
-    // Respond to client
-    ws.send(JSON.stringify({
-        event: "loginSuccess",
-        playerId: player.id,
-        username: player.username
-    }));
 };
