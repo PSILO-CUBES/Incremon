@@ -1,0 +1,145 @@
+[gd_scene load_steps=5 format=3 uid="uid://ds83htxq4mapb"]
+
+[ext_resource type="Script" uid="uid://b6t3b4bqhir2i" path="res://assets/ui/login/login_ui_manager.gd" id="1_xn8s8"]
+[ext_resource type="PackedScene" uid="uid://fuva5432gtkv" path="res://assets/ui/hoverable_button.tscn" id="2_xfd7v"]
+[ext_resource type="Script" uid="uid://lvpoferqfjkf" path="res://assets/network/scripts/login.gd" id="3_h81uu"]
+[ext_resource type="Script" uid="uid://y0fom2wpbmne" path="res://assets/network/scripts/create_account.gd" id="4_xfd7v"]
+
+[node name="LogInPage" type="Node2D"]
+script = ExtResource("1_xn8s8")
+
+[node name="MessageLabel" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(150, 0)
+offset_left = 441.0
+offset_top = 258.0
+offset_right = 846.0
+offset_bottom = 283.0
+theme_override_colors/font_color = Color(0.912225, 0.000409593, 0.000224482, 1)
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="LogInContainer" type="CenterContainer" parent="."]
+offset_right = 1280.0
+offset_bottom = 720.0
+
+[node name="SignInContainer" type="VBoxContainer" parent="LogInContainer"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(300, 100)
+layout_mode = 2
+alignment = 1
+
+[node name="SignInUserNameInput" type="LineEdit" parent="LogInContainer/SignInContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Username"
+
+[node name="SignInPasswordInput" type="LineEdit" parent="LogInContainer/SignInContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Password"
+
+[node name="ConnectButtonContainer" type="CenterContainer" parent="LogInContainer/SignInContainer"]
+custom_minimum_size = Vector2(0, 35)
+layout_mode = 2
+
+[node name="ConnectButton" parent="LogInContainer/SignInContainer/ConnectButtonContainer" instance=ExtResource("2_xfd7v")]
+layout_mode = 2
+text = "Connect"
+
+[node name="OnClickConnectManager" type="Node" parent="LogInContainer/SignInContainer/ConnectButtonContainer/ConnectButton"]
+script = ExtResource("3_h81uu")
+
+[node name="SignUpContainer" type="VBoxContainer" parent="LogInContainer"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(300, 100)
+layout_mode = 2
+alignment = 1
+
+[node name="SignUpUserNameInput" type="LineEdit" parent="LogInContainer/SignUpContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Username"
+
+[node name="SignUpEmailInput" type="LineEdit" parent="LogInContainer/SignUpContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Email"
+
+[node name="SignUpPasswordInput" type="LineEdit" parent="LogInContainer/SignUpContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Password"
+
+[node name="CreateButtonContainer" type="CenterContainer" parent="LogInContainer/SignUpContainer"]
+custom_minimum_size = Vector2(0, 35)
+layout_mode = 2
+
+[node name="CreateButton" parent="LogInContainer/SignUpContainer/CreateButtonContainer" instance=ExtResource("2_xfd7v")]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Create"
+
+[node name="CreateAccountManager" type="Node" parent="LogInContainer/SignUpContainer/CreateButtonContainer/CreateButton"]
+script = ExtResource("4_xfd7v")
+
+[node name="ForgotPasswordContainer" type="VBoxContainer" parent="LogInContainer"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(300, 100)
+layout_mode = 2
+alignment = 1
+
+[node name="EmailInput" type="LineEdit" parent="LogInContainer/ForgotPasswordContainer"]
+layout_mode = 2
+placeholder_text = "Email"
+
+[node name="RecoverButtonContainer" type="CenterContainer" parent="LogInContainer/ForgotPasswordContainer"]
+custom_minimum_size = Vector2(0, 35)
+layout_mode = 2
+
+[node name="RecoverButton" parent="LogInContainer/ForgotPasswordContainer/RecoverButtonContainer" instance=ExtResource("2_xfd7v")]
+layout_mode = 2
+text = "Recover"
+
+[node name="ChangeUIButtonsContainer" type="VBoxContainer" parent="."]
+offset_left = 8.0
+offset_top = 640.0
+offset_right = 158.0
+offset_bottom = 724.0
+
+[node name="ForgotPasswordButtonContainer" type="CenterContainer" parent="ChangeUIButtonsContainer"]
+custom_minimum_size = Vector2(0, 35)
+layout_mode = 2
+
+[node name="ForgotPasswordButton" parent="ChangeUIButtonsContainer/ForgotPasswordButtonContainer" instance=ExtResource("2_xfd7v")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "Forgot Password
+"
+
+[node name="RegisterTypeButtonContainer" type="CenterContainer" parent="ChangeUIButtonsContainer"]
+custom_minimum_size = Vector2(0, 35)
+layout_mode = 2
+
+[node name="SignUpButton" parent="ChangeUIButtonsContainer/RegisterTypeButtonContainer" instance=ExtResource("2_xfd7v")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "Sign Up"
+
+[node name="SignInButton" parent="ChangeUIButtonsContainer/RegisterTypeButtonContainer" instance=ExtResource("2_xfd7v")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "Sign In"
+
+[connection signal="pressed" from="LogInContainer/SignInContainer/ConnectButtonContainer/ConnectButton" to="LogInContainer/SignInContainer/ConnectButtonContainer/ConnectButton/OnClickConnectManager" method="_on_pressed"]
+[connection signal="pressed" from="LogInContainer/SignUpContainer/CreateButtonContainer/CreateButton" to="LogInContainer/SignUpContainer/CreateButtonContainer/CreateButton/CreateAccountManager" method="_on_send_pressed"]
+[connection signal="pressed" from="ChangeUIButtonsContainer/ForgotPasswordButtonContainer/ForgotPasswordButton" to="." method="_on_change_ui_button_pressed" binds= ["recover_password"]]
+[connection signal="pressed" from="ChangeUIButtonsContainer/RegisterTypeButtonContainer/SignUpButton" to="." method="_on_change_ui_button_pressed" binds= ["sign_up"]]
+[connection signal="pressed" from="ChangeUIButtonsContainer/RegisterTypeButtonContainer/SignInButton" to="." method="_on_change_ui_button_pressed" binds= ["sign_in"]]

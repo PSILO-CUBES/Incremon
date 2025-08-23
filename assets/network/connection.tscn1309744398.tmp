@@ -1,0 +1,21 @@
+[gd_scene load_steps=2 format=3 uid="uid://bfu7c461c45de"]
+
+[ext_resource type="Script" uid="uid://d1jiq3yv7qcen" path="res://assets/network/connection.gd" id="1_kc4cu"]
+
+[node name="ConnectionScreen" type="Node2D"]
+
+[node name="Connection" type="Node" parent="."]
+script = ExtResource("1_kc4cu")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="CenterContainer" type="CenterContainer" parent="CanvasLayer"]
+offset_right = 1280.0
+offset_bottom = 720.0
+
+[node name="ConnectingLabel" type="Label" parent="CanvasLayer/CenterContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "Connecting."

@@ -1,0 +1,55 @@
+[gd_scene load_steps=3 format=3 uid="uid://2haorl5bahq4"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_xgs31"]
+size = Vector2(2575, 1450)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_gblyj"]
+size = Vector2(2233, 1184)
+
+[node name="Map" type="Node2D"]
+
+[node name="ColorRect" type="ColorRect" parent="."]
+offset_left = -625.0
+offset_top = -425.0
+offset_right = 2575.0
+offset_bottom = 1450.0
+color = Color(0.35605, 0.236028, 0.413019, 1)
+
+[node name="ColorRect2" type="ColorRect" parent="."]
+offset_left = 2335.0
+offset_top = 1223.0
+offset_right = 2575.0
+offset_bottom = 1450.0
+color = Color(4.9334e-07, 0.353785, 0.184623, 1)
+
+[node name="ColorRect3" type="ColorRect" parent="."]
+offset_left = 1474.0
+offset_top = 833.0
+offset_right = 1714.0
+offset_bottom = 1060.0
+color = Color(4.9334e-07, 0.353785, 0.184623, 1)
+
+[node name="ColorRect4" type="ColorRect" parent="."]
+offset_left = 1716.0
+offset_top = 281.0
+offset_right = 1956.0
+offset_bottom = 508.0
+color = Color(4.9334e-07, 0.353785, 0.184623, 1)
+
+[node name="ColorRect5" type="ColorRect" parent="."]
+offset_left = 317.0
+offset_top = 718.0
+offset_right = 557.0
+offset_bottom = 945.0
+color = Color(4.9334e-07, 0.353785, 0.184623, 1)
+
+[node name="MapSize" type="CollisionShape2D" parent="."]
+visible = false
+position = Vector2(1287.5, 725)
+shape = SubResource("RectangleShape2D_xgs31")
+
+[node name="MapArea" type="Area2D" parent="."]
+
+[node name="MapShape" type="CollisionShape2D" parent="MapArea"]
+position = Vector2(1113.5, 588)
+shape = SubResource("RectangleShape2D_gblyj")

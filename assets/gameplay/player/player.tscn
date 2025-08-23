@@ -1,0 +1,88 @@
+[gd_scene load_steps=12 format=3 uid="uid://b6rn16sev4kge"]
+
+[ext_resource type="Script" uid="uid://bsrtehx4mq6qc" path="res://assets/gameplay/player/scripts/movement.gd" id="1_sdh3n"]
+[ext_resource type="Texture2D" uid="uid://dkphcx5v0fmsd" path="res://assets/gameplay/player/imgs/ayylmao-idle.png" id="2_644yx"]
+[ext_resource type="Texture2D" uid="uid://cswnmbmwrgpsl" path="res://assets/gameplay/player/imgs/ayylmao-sprite.png" id="2_sykou"]
+[ext_resource type="Script" uid="uid://cfel7b7j2htpq" path="res://assets/gameplay/player/scripts/player_camera.gd" id="4_mxtiq"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_u8vuu"]
+size = Vector2(51, 99)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pm0qs"]
+atlas = ExtResource("2_644yx")
+region = Rect2(0, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sykou"]
+atlas = ExtResource("2_sykou")
+region = Rect2(0, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_644yx"]
+atlas = ExtResource("2_sykou")
+region = Rect2(96, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mxtiq"]
+atlas = ExtResource("2_sykou")
+region = Rect2(192, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_li2qy"]
+atlas = ExtResource("2_sykou")
+region = Rect2(288, 0, 96, 96)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_3vyb7"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pm0qs")
+}],
+"loop": false,
+"name": &"idle",
+"speed": 0.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_sykou")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_644yx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mxtiq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_li2qy")
+}],
+"loop": true,
+"name": &"walk",
+"speed": 4.0
+}]
+
+[node name="PlayerBody" type="CharacterBody2D"]
+script = ExtResource("1_sdh3n")
+speed = 300.0
+
+[node name="UsernameLabel" type="Label" parent="."]
+offset_left = -65.0
+offset_top = -72.0
+offset_right = 65.0
+offset_bottom = -52.0
+theme_override_font_sizes/font_size = 14
+text = "PlaceHolder"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="PlayerShape" type="CollisionShape2D" parent="."]
+position = Vector2(-2.5, -0.5)
+shape = SubResource("RectangleShape2D_u8vuu")
+
+[node name="PlayerAnimation" type="AnimatedSprite2D" parent="."]
+unique_name_in_owner = true
+self_modulate = Color(0, 0, 1, 1)
+texture_filter = 1
+sprite_frames = SubResource("SpriteFrames_3vyb7")
+animation = &"walk"
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position_smoothing_enabled = true
+script = ExtResource("4_mxtiq")
+player_path = NodePath("..")

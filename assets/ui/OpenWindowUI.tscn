@@ -1,0 +1,74 @@
+[gd_scene load_steps=7 format=3 uid="uid://8g47ckydaluj"]
+
+[ext_resource type="PackedScene" uid="uid://fuva5432gtkv" path="res://assets/ui/hoverable_button.tscn" id="1_f3321"]
+[ext_resource type="Texture2D" uid="uid://hy7gbhw1neuq" path="res://assets/utils/icons/X.png" id="2_vpfmq"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_f3321"]
+bg_color = Color(0.223529, 0.223529, 0.223529, 1)
+corner_radius_top_left = 100
+corner_radius_top_right = 100
+corner_radius_bottom_right = 100
+corner_radius_bottom_left = 100
+shadow_size = 1
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4f2wt"]
+bg_color = Color(0.223529, 0.223529, 0.223529, 1)
+corner_radius_top_left = 100
+corner_radius_top_right = 100
+corner_radius_bottom_right = 100
+corner_radius_bottom_left = 100
+shadow_size = 1
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_cqljx"]
+bg_color = Color(0.254902, 0.254902, 0.254902, 1)
+corner_radius_top_left = 100
+corner_radius_top_right = 100
+corner_radius_bottom_right = 100
+corner_radius_bottom_left = 100
+shadow_size = 1
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8g740"]
+bg_color = Color(0.196078, 0.196078, 0.196078, 1)
+corner_radius_top_left = 100
+corner_radius_top_right = 100
+corner_radius_bottom_right = 100
+corner_radius_bottom_left = 100
+shadow_size = 1
+shadow_offset = Vector2(0, 3)
+
+[node name="OpenWindow" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+
+[node name="HoverableButton" parent="." instance=ExtResource("1_f3321")]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 1
+offset_left = 1230.0
+offset_top = 12.0
+offset_right = 1260.0
+offset_bottom = 42.0
+theme_override_styles/hover_pressed_mirrored = SubResource("StyleBoxFlat_f3321")
+theme_override_styles/hover_pressed = SubResource("StyleBoxFlat_4f2wt")
+theme_override_styles/hover = SubResource("StyleBoxFlat_cqljx")
+theme_override_styles/normal = SubResource("StyleBoxFlat_8g740")
+icon = ExtResource("2_vpfmq")
+icon_alignment = 1
+expand_icon = true
+
+[node name="Control" type="Control" parent="."]
+anchors_preset = 0
+offset_left = 21.0
+offset_top = 75.0
+offset_right = 1248.0
+offset_bottom = 685.0
+
+[node name="ColorRect" type="ColorRect" parent="Control"]
+layout_mode = 0
+offset_left = -1.0
+offset_top = -25.0
+offset_right = 1239.0
+offset_bottom = 575.0
+color = Color(0.0295066, 0.0295066, 0.0295066, 0.368627)

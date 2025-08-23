@@ -1,0 +1,17 @@
+[gd_scene load_steps=4 format=3 uid="uid://b4rxnp7oq3tl2"]
+
+[ext_resource type="PackedScene" uid="uid://2haorl5bahq4" path="res://assets/gameplay/maps/playground.tscn" id="1_s2d80"]
+[ext_resource type="PackedScene" uid="uid://cpy51tuvsfyvr" path="res://assets/ui/ui.tscn" id="2_y4wl3"]
+[ext_resource type="Script" uid="uid://bis3rffr4ba3c" path="res://assets/gameplay/player/scripts/player_spawner.gd" id="3_y4wl3"]
+
+[node name="Game" type="Node2D"]
+
+[node name="World" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="Map" parent="World" instance=ExtResource("1_s2d80")]
+
+[node name="UI" parent="." instance=ExtResource("2_y4wl3")]
+
+[node name="PlayerSpawner" type="Node" parent="."]
+script = ExtResource("3_y4wl3")

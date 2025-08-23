@@ -1,0 +1,78 @@
+[gd_scene load_steps=3 format=3 uid="uid://ds83htxq4mapb"]
+
+[ext_resource type="Script" uid="uid://lvpoferqfjkf" path="res://assets/ui/buttons/connect_button.gd" id="1_kq1lj"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_76uxg"]
+bg_color = Color(0.194349, 0.194349, 0.194349, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+shadow_size = 1
+shadow_offset = Vector2(0, 3)
+
+[node name="LogInPage" type="Node2D"]
+
+[node name="LogInContainer" type="CenterContainer" parent="."]
+offset_right = 1280.0
+offset_bottom = 720.0
+
+[node name="InputVBox" type="VBoxContainer" parent="LogInContainer"]
+custom_minimum_size = Vector2(300, 100)
+layout_mode = 2
+alignment = 1
+
+[node name="UserNameInput" type="LineEdit" parent="LogInContainer/InputVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Username"
+
+[node name="PasswordInput" type="LineEdit" parent="LogInContainer/InputVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Password"
+
+[node name="ConnectButtonContainer" type="CenterContainer" parent="LogInContainer/InputVBox"]
+custom_minimum_size = Vector2(0, 35)
+layout_mode = 2
+
+[node name="ConnectButton" type="Button" parent="LogInContainer/InputVBox/ConnectButtonContainer"]
+custom_minimum_size = Vector2(120, 30)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.560955, 0.560955, 0.560955, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_76uxg")
+text = "Connect"
+script = ExtResource("1_kq1lj")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+offset_top = 636.0
+offset_right = 140.0
+offset_bottom = 720.0
+
+[node name="RegisterTypeButtonContainer" type="CenterContainer" parent="VBoxContainer"]
+custom_minimum_size = Vector2(0, 35)
+layout_mode = 2
+
+[node name="RegisterTypeButton" type="Button" parent="VBoxContainer/RegisterTypeButtonContainer"]
+custom_minimum_size = Vector2(120, 30)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.560955, 0.560955, 0.560955, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_76uxg")
+text = "Sign Up"
+script = ExtResource("1_kq1lj")
+
+[node name="ForgotPasswordButtonContainer" type="CenterContainer" parent="VBoxContainer"]
+custom_minimum_size = Vector2(0, 35)
+layout_mode = 2
+
+[node name="ForgotPasswordButton" type="Button" parent="VBoxContainer/ForgotPasswordButtonContainer"]
+custom_minimum_size = Vector2(120, 30)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.560955, 0.560955, 0.560955, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_76uxg")
+text = "Forgot Pass"
+script = ExtResource("1_kq1lj")
+
+[connection signal="pressed" from="LogInContainer/InputVBox/ConnectButtonContainer/ConnectButton" to="LogInContainer/InputVBox/ConnectButtonContainer/ConnectButton" method="_on_pressed"]
+[connection signal="pressed" from="VBoxContainer/RegisterTypeButtonContainer/RegisterTypeButton" to="VBoxContainer/RegisterTypeButtonContainer/RegisterTypeButton" method="_on_pressed"]
+[connection signal="pressed" from="VBoxContainer/ForgotPasswordButtonContainer/ForgotPasswordButton" to="VBoxContainer/ForgotPasswordButtonContainer/ForgotPasswordButton" method="_on_pressed"]

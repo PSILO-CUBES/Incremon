@@ -1,23 +1,20 @@
-const { MongoClient } = require("mongodb");
+const mongoose = require('mongoose')
+require('dotenv').config()
 
-const mongoUrl = "mongodb://localhost:27017";
-const dbName = "mygame";
-
-let db;
+const mongoUrl = process.env.MONGO_URL
+const dbName = process.env.DB_NAME
 
 async function connect() {
-    if (!db) {
-        const client = new MongoClient(mongoUrl);
-        await client.connect();
-        console.log("✅ Connected to MongoDB");
-        db = client.db(dbName);
-    }
-    return db;
+  if (mongoose.connection.readyState === 0) {
+    await mongoose.connect(mongoUrl, { dbName })
+    console.log('✅ Connected to MongoDB via Mongoose')
+  }
+  return mongoose.connection
 }
 
 function getDb() {
-    if (!db) throw new Error("MongoDB not connected yet");
-    return db;
+  if (mongoose.connection.readyState === 0) throw new Error('MongoDB not connected yet')
+  return mongoose.connection.db
 }
 
-module.exports = { connect, getDb };
+module.exports = { connect, getDb }
