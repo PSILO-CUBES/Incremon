@@ -2,7 +2,7 @@ extends Node
 
 @onready var label = %ConnectingLabel
 
-const LOGIN = preload("res://assets/network/scenes/login.tscn")
+const LOGIN = preload("res://assets/network/scenes/Login.tscn")
 
 var dot_count := 1
 var dot_direction := 1

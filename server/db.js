@@ -7,7 +7,7 @@ const dbName = process.env.DB_NAME
 async function connect() {
   if (mongoose.connection.readyState === 0) {
     await mongoose.connect(mongoUrl, { dbName })
-    console.log('✅ Connected to MongoDB via Mongoose')
+    console.log('-* Connected to MongoDB via Mongoose')
   }
   return mongoose.connection
 }

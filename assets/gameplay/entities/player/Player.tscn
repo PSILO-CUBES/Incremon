@@ -1,0 +1,111 @@
+[gd_scene load_steps=16 format=3 uid="uid://b6rn16sev4kge"]
+
+[ext_resource type="PackedScene" uid="uid://ctj3jtigwf28u" path="res://assets/gameplay/entities/Entity.tscn" id="1_0dxid"]
+[ext_resource type="Texture2D" uid="uid://dkphcx5v0fmsd" path="res://assets/gameplay/entities/player/imgs/ayylmao-idle.png" id="2_2guys"]
+[ext_resource type="Texture2D" uid="uid://diljujg6ciqpo" path="res://assets/gameplay/entities/player/imgs/ayylmao-walk.png" id="3_0436n"]
+[ext_resource type="Script" uid="uid://cfel7b7j2htpq" path="res://assets/gameplay/entities/player/scripts/PlayerCamera.gd" id="4_xsdfg"]
+[ext_resource type="Script" uid="uid://rnwlyfsqqyus" path="res://assets/gameplay/entities/state_machine/states/walk/PlayerWalk.gd" id="5_8darc"]
+[ext_resource type="Script" uid="uid://1pms5cxs0jeb" path="res://assets/gameplay/entities/state_machine/states/idle/PlayerIdle.gd" id="6_b8kd6"]
+[ext_resource type="Script" uid="uid://cgd8l5bogqppc" path="res://assets/gameplay/entities/state_machine/states/attack/PlayerAttack.gd" id="7_2guys"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pm0qs"]
+atlas = ExtResource("2_2guys")
+region = Rect2(0, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sykou"]
+atlas = ExtResource("3_0436n")
+region = Rect2(0, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_644yx"]
+atlas = ExtResource("3_0436n")
+region = Rect2(96, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mxtiq"]
+atlas = ExtResource("3_0436n")
+region = Rect2(192, 0, 96, 96)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_li2qy"]
+atlas = ExtResource("3_0436n")
+region = Rect2(288, 0, 96, 96)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_8m6vl"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pm0qs")
+}],
+"loop": false,
+"name": &"idle",
+"speed": 0.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_sykou")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_644yx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mxtiq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_li2qy")
+}],
+"loop": true,
+"name": &"walk",
+"speed": 4.0
+}]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_bgs2f"]
+radius = 29.0
+height = 102.0
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_2guys"]
+radius = 30.0
+height = 104.0
+
+[node name="Player" instance=ExtResource("1_0dxid")]
+
+[node name="UsernameLabel" type="Label" parent="." index="0"]
+z_index = 1
+texture_filter = 1
+offset_left = -65.0
+offset_top = -72.0
+offset_right = 65.0
+offset_bottom = -52.0
+theme_override_font_sizes/font_size = 14
+text = "PlaceHolder"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="EntityAnimationSprite" parent="." index="1"]
+sprite_frames = SubResource("SpriteFrames_8m6vl")
+animation = &"idle"
+
+[node name="Camera2D" type="Camera2D" parent="." index="2"]
+process_callback = 0
+position_smoothing_enabled = true
+script = ExtResource("4_xsdfg")
+player_path = NodePath("..")
+
+[node name="EntityShape" parent="." index="3"]
+position = Vector2(-1, 0)
+shape = SubResource("CapsuleShape2D_bgs2f")
+debug_color = Color(0, 0.6, 0.701961, 0)
+
+[node name="RangeShape" parent="RangeArea" index="0"]
+shape = SubResource("CapsuleShape2D_2guys")
+debug_color = Color(0, 0.6, 0.701961, 0)
+
+[node name="StateMachine" parent="." index="5" node_paths=PackedStringArray("init_state")]
+init_state = NodePath("Idle")
+
+[node name="Walk" type="Node" parent="StateMachine" index="0"]
+script = ExtResource("5_8darc")
+
+[node name="Idle" type="Node" parent="StateMachine" index="1"]
+script = ExtResource("6_b8kd6")
+
+[node name="Attack" type="Node" parent="StateMachine" index="2"]
+script = ExtResource("7_2guys")

@@ -1,0 +1,5 @@
+[gd_scene load_steps=2 format=3 uid="uid://bvwcrfrhmu0yi"]
+
+[ext_resource type="PackedScene" uid="uid://dsmjuhfyhp4of" path="res://assets/gameplay/entities/attacks/Hitbox.tscn" id="1_jrsua"]
+
+[node name="EnemyHit" instance=ExtResource("1_jrsua")]

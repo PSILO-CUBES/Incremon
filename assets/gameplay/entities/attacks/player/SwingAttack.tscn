@@ -1,0 +1,7 @@
+[gd_scene load_steps=3 format=3 uid="uid://dg0oj86yn1phm"]
+
+[ext_resource type="Script" uid="uid://35qkc2lcx2h6" path="res://assets/gameplay/entities/attacks/player/SwingAttack.gd" id="1_2xw1d"]
+[ext_resource type="PackedScene" uid="uid://dsmjuhfyhp4of" path="res://assets/gameplay/entities/attacks/Hitbox.tscn" id="1_u1vdg"]
+
+[node name="SwingAttack" instance=ExtResource("1_u1vdg")]
+script = ExtResource("1_2xw1d")

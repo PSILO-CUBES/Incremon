@@ -4,7 +4,7 @@ extends Node
 @onready var password_input: LineEdit = %SignInPasswordInput
 
 const Game = preload("res://assets/gameplay/game.tscn")
-const TokenStorage = preload("res://assets/network/scripts/token_storage.gd")
+const TokenStorage = preload("res://assets/network/scripts/TokenStorage.gd")
 
 var handler = {}
 
@@ -12,7 +12,7 @@ func _ready():
 	if not WebSocketClient.is_connected("login_successful", Callable(self, "_on_login_success")):
 		WebSocketClient.connect("login_successful", Callable(self, "_on_login_success"))
 	
-	var token = TokenStorage.load_token()
+	var token = TokenStorage.load_lltoken()
 	if token != "":
 		send_token_payload(token)
 
@@ -45,8 +45,7 @@ func send_token_payload(token: String):
 	else:
 		print("WebSocket not connected!")
 
-func _on_login_success(playerId, sl_token):
-	print(sl_token)
+func _on_login_success(playerId):
 	_change_to_game()
 
 func _change_to_game():

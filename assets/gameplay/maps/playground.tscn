@@ -1,10 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://2haorl5bahq4"]
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_xgs31"]
-size = Vector2(2575, 1450)
+[gd_scene load_steps=2 format=3 uid="uid://2haorl5bahq4"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_gblyj"]
-size = Vector2(2233, 1184)
+size = Vector2(1956, 1058)
 
 [node name="Map" type="Node2D"]
 
@@ -43,13 +40,9 @@ offset_right = 557.0
 offset_bottom = 945.0
 color = Color(4.9334e-07, 0.353785, 0.184623, 1)
 
-[node name="MapSize" type="CollisionShape2D" parent="."]
-visible = false
-position = Vector2(1287.5, 725)
-shape = SubResource("RectangleShape2D_xgs31")
-
 [node name="MapArea" type="Area2D" parent="."]
+visible = false
 
 [node name="MapShape" type="CollisionShape2D" parent="MapArea"]
-position = Vector2(1113.5, 588)
+position = Vector2(978, 529)
 shape = SubResource("RectangleShape2D_gblyj")

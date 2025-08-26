@@ -1,0 +1,98 @@
+[gd_scene load_steps=9 format=3 uid="uid://gvpepsd11y4k"]
+
+[ext_resource type="PackedScene" uid="uid://fuva5432gtkv" path="res://assets/ui/HoverableButton.tscn" id="1_tc7em"]
+[ext_resource type="Texture2D" uid="uid://cuavio20leuhg" path="res://assets/utils/icons/backpack.png" id="2_a6ixx"]
+[ext_resource type="Texture2D" uid="uid://b67xs73el63eq" path="res://assets/utils/icons/monster_manager.png" id="2_mk1uq"]
+[ext_resource type="Texture2D" uid="uid://c20pekj2vpk5a" path="res://assets/utils/icons/HUB.png" id="4_5x5ia"]
+[ext_resource type="Texture2D" uid="uid://cdf0e3mkqe64v" path="res://assets/utils/icons/map.png" id="5_oeodr"]
+[ext_resource type="Texture2D" uid="uid://c8wa7fyqyht6o" path="res://assets/utils/icons/option.png" id="6_lmlc7"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_a6ixx"]
+bg_color = Color(0.0980392, 0.0980392, 0.0980392, 1)
+corner_radius_top_left = 5
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_oeodr"]
+
+[node name="NavBar" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+
+[node name="OWButtonsPanel" type="Panel" parent="."]
+layout_mode = 0
+offset_left = 524.0
+offset_top = 655.0
+offset_right = 1280.0
+offset_bottom = 720.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_a6ixx")
+
+[node name="HoverableButton" parent="OWButtonsPanel" instance=ExtResource("1_tc7em")]
+custom_minimum_size = Vector2(135, 30)
+layout_mode = 1
+offset_left = 9.0
+offset_top = 8.0
+offset_right = -612.0
+offset_bottom = -7.0
+icon = ExtResource("2_mk1uq")
+icon_alignment = 1
+expand_icon = true
+
+[node name="HoverableButton2" parent="OWButtonsPanel" instance=ExtResource("1_tc7em")]
+custom_minimum_size = Vector2(135, 30)
+layout_mode = 1
+offset_left = 162.0
+offset_top = 8.0
+offset_right = -459.0
+offset_bottom = -7.0
+icon = ExtResource("2_a6ixx")
+icon_alignment = 1
+expand_icon = true
+
+[node name="HoverableButton3" parent="OWButtonsPanel" instance=ExtResource("1_tc7em")]
+custom_minimum_size = Vector2(135, 30)
+layout_mode = 1
+offset_left = 312.0
+offset_top = 8.0
+offset_right = -309.0
+offset_bottom = -7.0
+icon = ExtResource("4_5x5ia")
+icon_alignment = 1
+expand_icon = true
+
+[node name="HoverableButton4" parent="OWButtonsPanel" instance=ExtResource("1_tc7em")]
+custom_minimum_size = Vector2(135, 30)
+layout_mode = 1
+offset_left = 462.0
+offset_top = 8.0
+offset_right = -159.0
+offset_bottom = -7.0
+icon = ExtResource("5_oeodr")
+icon_alignment = 1
+expand_icon = true
+
+[node name="HoverableButton5" parent="OWButtonsPanel" instance=ExtResource("1_tc7em")]
+custom_minimum_size = Vector2(135, 30)
+layout_mode = 1
+offset_left = 612.0
+offset_top = 8.0
+offset_right = -9.0
+offset_bottom = -7.0
+icon = ExtResource("6_lmlc7")
+icon_alignment = 1
+expand_icon = true
+
+[node name="ChatInput" type="TextEdit" parent="."]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 673.0
+offset_right = 517.0
+offset_bottom = 713.0
+theme_override_colors/background_color = Color(0, 0, 0, 0)
+theme_override_font_sizes/font_size = 20
+theme_override_styles/focus = SubResource("StyleBoxEmpty_oeodr")
+placeholder_text = "..."
+context_menu_enabled = false
+emoji_menu_enabled = false
+shortcut_keys_enabled = false
+caret_type = 1
+caret_blink = true
+caret_mid_grapheme = true

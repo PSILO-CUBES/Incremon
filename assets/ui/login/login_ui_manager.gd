@@ -16,8 +16,8 @@ func _ready() -> void:
 	if not WebSocketClient.is_connected("login_error", Callable(self, "_show_error")):
 		WebSocketClient.connect("login_error", Callable(self, "_show_error"))
 	
-	if not WebSocketClient.is_connected("login_confirmation", Callable(self, "_show_confirmation")):
-		WebSocketClient.connect("login_confirmation", Callable(self, "_show_confirmation"))
+	if not WebSocketClient.is_connected("account_created", Callable(self, "_show_confirmation")):
+		WebSocketClient.connect("account_created", Callable(self, "_show_confirmation"))
 	
 	await get_tree().create_timer(0.1).timeout
 	update_login_ui('sign_in')

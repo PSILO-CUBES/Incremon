@@ -1,8 +1,8 @@
 [gd_scene load_steps=4 format=3 uid="uid://cpy51tuvsfyvr"]
 
-[ext_resource type="PackedScene" uid="uid://chrh4o8s2ikuv" path="res://assets/ui/OWPlayerInfoUI.tscn" id="1_yl7md"]
-[ext_resource type="PackedScene" uid="uid://8g47ckydaluj" path="res://assets/ui/OpenWindowUI.tscn" id="2_6uhpu"]
-[ext_resource type="PackedScene" uid="uid://gvpepsd11y4k" path="res://assets/ui/OWNavBarUI.tscn" id="3_spiay"]
+[ext_resource type="PackedScene" uid="uid://chrh4o8s2ikuv" path="res://assets/ui/login/OWPlayerInfoUI.tscn" id="1_yl7md"]
+[ext_resource type="PackedScene" uid="uid://8g47ckydaluj" path="res://assets/ui/login/OpenWindowUI.tscn" id="2_6uhpu"]
+[ext_resource type="PackedScene" uid="uid://gvpepsd11y4k" path="res://assets/ui/login/OWNavBarUI.tscn" id="3_spiay"]
 
 [node name="UI" type="CanvasLayer"]
 

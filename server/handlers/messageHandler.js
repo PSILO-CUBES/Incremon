@@ -1,10 +1,12 @@
 const loginHandler = require("./login")
 const tokenLoginHandler = require("./tokenLogin")
 const accountCreationHandler = require("./createAccount")
+const slTokenRefresh = require("./slTokenRefresh")
 
 const handlers = {
     login: loginHandler,
     tokenLogin: tokenLoginHandler,
+    slTokenRefresh: slTokenRefresh,
     createAccount: accountCreationHandler
     // add more actions here
 }

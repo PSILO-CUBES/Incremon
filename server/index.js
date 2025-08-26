@@ -7,22 +7,22 @@ async function start() {
     await dbModule.connect()
 
     const wss = new WebSocket.Server({ port: 8080 })
-    console.log("🚀 WebSocket server running on ws://127.0.0.1:8080")
+    console.log("-* WebSocket server running on ws://127.0.0.1:8080")
 
     wss.on("connection", (ws, req) => {
-        console.log("🔗 Client connected from:", req.socket.remoteAddress)
+        console.log("-* Client connected from:", req.socket.remoteAddress)
 
         ws.on("message", (msg) => {
             try {
                 const data = JSON.parse(msg.toString())
                 handleMessage(ws, data) // generic handler
             } catch (err) {
-                console.error("❌ Invalid message:", err)
+                console.error("Invalid message:", err)
             }
         })
 
         ws.on("close", () => {
-            console.log("❌ Client disconnected")
+            console.log("-* Client disconnected")
         })
     })
 
@@ -38,7 +38,7 @@ async function start() {
         const user = await usersCollection.findOne({ verificationToken: token })
 
         if (!user) {
-            console.log("Invalid or expired token.")
+            console.log("-* Invalid or expired token.")
             return res.send("Invalid or expired token.")
         }
 
@@ -47,12 +47,12 @@ async function start() {
             { $set: { verified: true }, $unset: { verificationToken: "" } }
         )
 
-        res.send("✅ Your account has been verified! You can now log in.")
+        res.send("Your account has been verified! You can now log in.")
     })
 
     // Listen on a different port from WebSocket
     const httpPort = 3000
-    app.listen(httpPort, () => console.log(`🌐 HTTP server running on http://127.0.0.1:${httpPort}`))
+    app.listen(httpPort, () => console.log(`-* HTTP server running on http://127.0.0.1:${httpPort}`))
 }
 
 start()

@@ -1,9 +1,9 @@
 [gd_scene load_steps=5 format=3 uid="uid://ds83htxq4mapb"]
 
 [ext_resource type="Script" uid="uid://b6t3b4bqhir2i" path="res://assets/ui/login/login_ui_manager.gd" id="1_xn8s8"]
-[ext_resource type="PackedScene" uid="uid://fuva5432gtkv" path="res://assets/ui/hoverable_button.tscn" id="2_xfd7v"]
-[ext_resource type="Script" uid="uid://lvpoferqfjkf" path="res://assets/network/scripts/login.gd" id="3_h81uu"]
-[ext_resource type="Script" uid="uid://y0fom2wpbmne" path="res://assets/network/scripts/create_account.gd" id="4_xfd7v"]
+[ext_resource type="PackedScene" uid="uid://fuva5432gtkv" path="res://assets/ui/HoverableButton.tscn" id="2_xfd7v"]
+[ext_resource type="Script" uid="uid://lvpoferqfjkf" path="res://assets/network/scripts/Login.gd" id="3_h81uu"]
+[ext_resource type="Script" uid="uid://y0fom2wpbmne" path="res://assets/network/scripts/CreateAccount.gd" id="4_xfd7v"]
 
 [node name="LogInPage" type="Node2D"]
 script = ExtResource("1_xn8s8")

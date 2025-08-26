@@ -58,7 +58,7 @@ module.exports = async (ws, data) => {
             message: "Account created! Please check your email to verify."
         }))
 
-        console.log(`📧 Verification email sent to ${username} <${email}>`)
+        console.log(`-* Verification email sent to ${username} <${email}>`)
     } catch (err) {
         console.error("Error creating account or sending email:", err)
         ws.send(JSON.stringify({

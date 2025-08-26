@@ -2,8 +2,8 @@ const { v4: uuidv4 } = require("uuid")
 const bcrypt = require("bcrypt")
 
 const dbModule = require("../db")
-const LLTokenManager = require("../tokenManagers/LLTokenManager")
-const SLTokenManager = require("../tokenManagers/SLTokenManager")
+const LLTokenManager = require("../tokenManagers/lltokenManager")
+const SLTokenManager = require("../tokenManagers/sltokenManager")
 
 // { ip: { count, lastAttempt, blockUntil, strikes } }
 const loginAttempts = {}
@@ -84,7 +84,7 @@ module.exports = async (ws, data, clientIp) => {
             }))
         }
 
-        console.log(`🔑 Player logged in: ${username}`)
+        console.log(`-* Player logged in: ${username}`)
         ws.playerId = player._id
 
         const llToken = await LLTokenManager.createToken(player._id.toString())
