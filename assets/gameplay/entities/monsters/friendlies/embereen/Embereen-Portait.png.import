@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bsdn5j847jvpx"
-path="res://.godot/imported/Embereen-Sheet.png-613775224af2be40632910e1d3a0ea14.ctex"
+uid="uid://bygmhb82klckb"
+path="res://.godot/imported/Embereen-Portait.png-0db7761094ec4b33bc9a872a0b2a6008.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/gameplay/entities/monsters/friendly/embereen/Embereen-Sheet.png"
-dest_files=["res://.godot/imported/Embereen-Sheet.png-613775224af2be40632910e1d3a0ea14.ctex"]
+source_file="res://assets/gameplay/entities/monsters/friendlies/embereen/Embereen-Portait.png"
+dest_files=["res://.godot/imported/Embereen-Portait.png-0db7761094ec4b33bc9a872a0b2a6008.ctex"]
 
 [params]
 

@@ -65,6 +65,8 @@ radius = 30.0
 height = 104.0
 
 [node name="Player" instance=ExtResource("1_0dxid")]
+collision_layer = 2
+collision_mask = 5
 
 [node name="UsernameLabel" type="Label" parent="." index="0"]
 z_index = 1
@@ -92,11 +94,9 @@ player_path = NodePath("..")
 [node name="EntityShape" parent="." index="3"]
 position = Vector2(-1, 0)
 shape = SubResource("CapsuleShape2D_bgs2f")
-debug_color = Color(0, 0.6, 0.701961, 0)
 
 [node name="RangeShape" parent="RangeArea" index="0"]
 shape = SubResource("CapsuleShape2D_2guys")
-debug_color = Color(0, 0.6, 0.701961, 0)
 
 [node name="StateMachine" parent="." index="5" node_paths=PackedStringArray("init_state")]
 init_state = NodePath("Idle")

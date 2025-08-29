@@ -20,9 +20,3 @@ func _exit():
 
 func _physics_update(delta):
 	super._physics_update(delta)
-
-func walk_after_attack(attack_instance):
-	attack_instance.tree_exited.connect(
-		func ():
-			Transitioned.emit(self, "walk")
-	)

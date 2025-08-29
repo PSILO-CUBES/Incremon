@@ -1,15 +1,15 @@
-[gd_scene load_steps=4 format=3 uid="uid://ctj3jtigwf28u"]
+[gd_scene load_steps=4 format=3 uid="uid://cn724itkciu67"]
 
-[ext_resource type="Script" uid="uid://vgixe24i1qtl" path="res://assets/gameplay/entities/state_machine/StateMachine.gd" id="1_0sv6q"]
-[ext_resource type="Script" uid="uid://bp2h7wcue8nj1" path="res://assets/gameplay/entities/Entity.gd" id="1_cacr3"]
+[ext_resource type="Script" uid="uid://bp2h7wcue8nj1" path="res://assets/gameplay/entities/Entity.gd" id="1_20wsg"]
+[ext_resource type="Script" uid="uid://vgixe24i1qtl" path="res://assets/gameplay/entities/state_machine/StateMachine.gd" id="2_3rqyh"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_6rmx6"]
 radius = 7.07107
 
 [node name="Entity" type="CharacterBody2D"]
-collision_layer = 0
-collision_mask = 0
-script = ExtResource("1_cacr3")
+collision_layer = 4
+collision_mask = 3
+script = ExtResource("1_20wsg")
 
 [node name="EntityAnimationSprite" type="AnimatedSprite2D" parent="."]
 unique_name_in_owner = true
@@ -25,4 +25,4 @@ shape = SubResource("CircleShape2D_6rmx6")
 debug_color = Color(0, 0.6, 0.701961, 0)
 
 [node name="StateMachine" type="Node" parent="."]
-script = ExtResource("1_0sv6q")
+script = ExtResource("2_3rqyh")
