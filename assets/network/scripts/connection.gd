@@ -28,8 +28,7 @@ func _ready():
 		set_process(false)
 		return
 	
-	WebSocketClient.connect("confirm_connection", Callable(self, "_on_connected"))
-	
+	WebSocketClient.register_noarg("connection_open", Callable(self, "_on_connected"))
 	set_process(true)
 
 func _process(delta):

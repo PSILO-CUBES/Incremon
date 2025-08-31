@@ -138,7 +138,7 @@ visible = false
 layout_mode = 2
 text = "Sign In"
 
-[connection signal="pressed" from="LogInContainer/SignInContainer/ConnectButtonContainer/ConnectButton" to="LogInContainer/SignInContainer/ConnectButtonContainer/ConnectButton/OnClickConnectManager" method="_on_pressed"]
+[connection signal="pressed" from="LogInContainer/SignInContainer/ConnectButtonContainer/ConnectButton" to="LogInContainer/SignInContainer/ConnectButtonContainer/ConnectButton/OnClickConnectManager" method="_on_connect_button_pressed"]
 [connection signal="pressed" from="LogInContainer/SignUpContainer/CreateButtonContainer/CreateButton" to="LogInContainer/SignUpContainer/CreateButtonContainer/CreateButton/CreateAccountManager" method="_on_send_pressed"]
 [connection signal="pressed" from="ChangeUIButtonsContainer/ForgotPasswordButtonContainer/ForgotPasswordButton" to="." method="_on_change_ui_button_pressed" binds= ["recover_password"]]
 [connection signal="pressed" from="ChangeUIButtonsContainer/RegisterTypeButtonContainer/SignUpButton" to="." method="_on_change_ui_button_pressed" binds= ["sign_up"]]

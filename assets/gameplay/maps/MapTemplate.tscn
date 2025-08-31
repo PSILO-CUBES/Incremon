@@ -1,7 +1,7 @@
 [gd_scene load_steps=2 format=3 uid="uid://2haorl5bahq4"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_gblyj"]
-size = Vector2(1956, 1058)
+size = Vector2(1920, 1077)
 
 [node name="Map" type="Node2D"]
 
@@ -13,3 +13,4 @@ position = Vector2(978, 529)
 shape = SubResource("RectangleShape2D_gblyj")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
+z_index = -5

@@ -1,4 +1,4 @@
-const SLTokenManager = require("../tokenManagers/sltokenManager")
+const SLTokenManager = require("../../tokenManagers/sltokenManager")
 
 module.exports = async (ws) => {
     if (!ws.playerId) {

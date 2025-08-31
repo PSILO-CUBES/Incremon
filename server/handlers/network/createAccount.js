@@ -1,6 +1,6 @@
-const transporter = require("../mailer")
 const { v4: uuidv4 } = require("uuid")
-const dbModule = require("../db")
+const transporter = require("../../mailer")
+const dbModule = require("../../db")
 require('dotenv').config()
 
 const saltRounds = 10

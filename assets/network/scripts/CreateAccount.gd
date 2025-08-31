@@ -8,21 +8,17 @@ extends Node
 @onready var send_button = %CreateButton
 @onready var message_label = %MessageLabel
 
-#func _ready():
-	#ws.connect_to_url("ws://localhost:3000")
-	#send_button.pressed.connect(_on_send_pressed)
-
 func _on_send_pressed():
 	var username = name_field.text.strip_edges()
 	var email = email_field.text.strip_edges()
 	var password = password_field.text.strip_edges()
 	
-	#if username.length() < 3:
-		#show_error("Username too short!")
-		#return
-	#if password.length() < 5:
-		#show_error("Message too short!")
-		#return
+	if username.length() < 3:
+		show_error("Username too short!")
+		return
+	if password.length() < 5:
+		show_error("Message too short!")
+		return
 	#
 	#var email_regex = RegEx.new()
 	#email_regex.compile(r"^[^@]+@[^@]+\.[^@]+$")

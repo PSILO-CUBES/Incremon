@@ -1,7 +1,18 @@
 const WebSocket = require("ws")
-const handleMessage = require("./handlers/messageHandler.js")
-const dbModule = require("./db")
 const express = require("express")
+
+const handleMessage = require("./handlers/index.js")
+const dbModule = require("./db")
+const wsRegistry = require("./wsRegistry");
+const Bus = require("./world/bus");
+
+Bus.on("entity:stateChanged", ({ playerId, entityId, to }) => {
+  wsRegistry.sendTo(playerId, { event: "entityStateUpdate", entityId, state: to });
+});
+
+Bus.on("entity:posChanged", ({ playerId, entityId, pos, entity }) => {
+  wsRegistry.sendTo(playerId, { event: "changePosition", entityId, pos, entity });
+});
 
 async function start() {
     await dbModule.connect()
@@ -10,21 +21,18 @@ async function start() {
     console.log("-* WebSocket server running on ws://127.0.0.1:8080")
 
     wss.on("connection", (ws, req) => {
-        console.log("-* Client connected from:", req.socket.remoteAddress)
-
-        ws.on("message", (msg) => {
-            try {
-                const data = JSON.parse(msg.toString())
-                handleMessage(ws, data) // generic handler
-            } catch (err) {
-                console.error("Invalid message:", err)
-            }
-        })
-
-        ws.on("close", () => {
-            console.log("-* Client disconnected")
-        })
-    })
+      const clientIp = req.socket.remoteAddress;
+    
+      ws.on("message", (raw) => {
+        // Let the handler do parsing + security checks
+        handleMessage(ws, raw, clientIp);
+      });
+  
+      ws.on("close", () => {
+        wsRegistry.removeByWs(ws);
+        console.log("-* Client disconnected");
+      });
+    });
 
     // --- Express HTTP server for email verification ---
     const app = express()

@@ -1,0 +1,7 @@
+{
+	"area1/m1": {
+		"version": 1,
+		"spawns": [{ "x": 640, "y": 320 }],
+		"bounds": { "minX": 0, "minY": 0, "maxX": 1920, "maxY": 1080 }
+	}
+}

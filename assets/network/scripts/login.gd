@@ -6,47 +6,26 @@ extends Node
 const Game = preload("res://assets/gameplay/game.tscn")
 const TokenStorage = preload("res://assets/network/scripts/TokenStorage.gd")
 
-var handler = {}
-
 func _ready():
-	if not WebSocketClient.is_connected("login_successful", Callable(self, "_on_login_success")):
-		WebSocketClient.connect("login_successful", Callable(self, "_on_login_success"))
-	
+	WebSocketClient.register_handler("loginSuccess", Callable(self, "_on_login_success"))
+	WebSocketClient.register_handler("loginFailed", Callable(self, "_on_login_failed"))
+
 	var token = TokenStorage.load_lltoken()
 	if token != "":
-		send_token_payload(token)
+		WebSocketClient.send_action("tokenLogin", {"token": token})
 
-func _on_pressed():
-	send_login_payload()
+func sign_in() -> void:
+	var username := user_name_input.text.strip_edges()
+	var password := password_input.text
+	if username == "" or password == "":
+		return
+	WebSocketClient.send_action("login", {"username": username, "password": password})
 
-func send_login_payload():
-	var ws = WebSocketClient.ws
-	if ws and ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
-		var username = user_name_input.text
-		var password = password_input.text
-		
-		var payload = {
-			"action": "login",
-			"username": username,
-			"password": password
-		}
-		ws.send_text(JSON.stringify(payload))
-	else:
-		print("WebSocket not connected!")
-
-func send_token_payload(token: String):
-	var ws = WebSocketClient.ws
-	if ws and ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
-		var payload = {
-			"action": "tokenLogin",
-			"token": token
-		}
-		ws.send_text(JSON.stringify(payload))
-	else:
-		print("WebSocket not connected!")
-
-func _on_login_success(playerId):
+func _on_login_success(payload: Dictionary) -> void:
 	_change_to_game()
+
+func _on_login_failed(payload: Dictionary) -> void:
+	print(payload.get("message", "Login failed"))
 
 func _change_to_game():
 	var tree = get_tree()
@@ -54,3 +33,6 @@ func _change_to_game():
 		tree.change_scene_to_packed(Game)
 	else:
 		push_error("SceneTree not available, cannot change scene!")
+
+func _on_connect_button_pressed() -> void:
+	sign_in()

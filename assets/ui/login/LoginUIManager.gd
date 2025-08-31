@@ -13,11 +13,9 @@ extends Node2D
 var login_menu_state : String = ''
 
 func _ready() -> void:
-	if not WebSocketClient.is_connected("login_error", Callable(self, "_show_error")):
-		WebSocketClient.connect("login_error", Callable(self, "_show_error"))
-	
-	if not WebSocketClient.is_connected("account_created", Callable(self, "_show_confirmation")):
-		WebSocketClient.connect("account_created", Callable(self, "_show_confirmation"))
+	WebSocketClient.register_handler("loginFailed", Callable(self, "_on_login_failed"))
+	WebSocketClient.register_handler("createAccountFailed", Callable(self, "_on_login_failed"))
+	WebSocketClient.register_handler("createAccountSuccess", Callable(self, "_on_create_account_success"))
 	
 	await get_tree().create_timer(0.1).timeout
 	update_login_ui('sign_in')
@@ -86,3 +84,13 @@ func update_login_ui(ui_type) :
 			sign_in_container.visible = false
 			sign_up_button.visible = false
 			forgot_password_button.visible = false
+
+func _on_login_failed(payload: Dictionary) -> void:
+	var msg: String = payload.get("message", "Login failed")
+	_show_error(msg)
+
+func _on_create_account_success(payload: Dictionary) -> void:
+	var msg: String = payload.get("message", "Account created successfully")
+	message_label.text = msg
+	message_label.visible = true
+	message_label.modulate.a = 1.0
