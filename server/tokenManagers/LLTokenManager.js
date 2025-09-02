@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid')
-const Token = require('../models/LLToken') // your Mongoose schema
+const Token = require('../schema/LLToken') // your Mongoose schema
 
 async function createToken(userId) {
     const tokenValue = uuidv4()

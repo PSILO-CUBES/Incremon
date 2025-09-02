@@ -9,6 +9,6 @@ module.exports = (ws, data = {}) => {
   ws.hasSpawned = true;
   console.log(`-* Player ${ws.playerId} acknowledged spawn`);
 
-  // Complete phase 2 of the handshake (this will hit the branch that logs worldReady)
+  // Will no longer re-send playerSpawn because worldReady is idempotent now
   worldReady(ws, { mapId: ws.currentMapId });
 };

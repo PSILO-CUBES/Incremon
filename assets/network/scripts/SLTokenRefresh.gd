@@ -30,7 +30,7 @@ func _start_sl_refresh_timer(interval_seconds: int) -> void:
 func _request_sl_refresh() -> void:
 	# If your server doesn’t require sending the old SL token, this can be just:
 	# ws.send_text(JSON.stringify({ "action": "slTokenRefresh" }))
-	var sl_token := TokenStorage.get_sltoken()
+	var sl_token := TokenStorage.get_short_lived_token()
 	
 	if sl_token == "":
 		return

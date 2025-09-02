@@ -1,0 +1,88 @@
+[gd_scene load_steps=12 format=3 uid="uid://bfbxub1ftfmed"]
+
+[ext_resource type="PackedScene" uid="uid://cn724itkciu67" path="res://assets/gameplay/entities/monsters/enemies/Enemies.tscn" id="1_x2gvf"]
+[ext_resource type="Texture2D" uid="uid://bf8gs4rml8qvl" path="res://assets/gameplay/entities/monsters/friendlies/slimie/Slimie-Sheet.png" id="2_1r2ln"]
+[ext_resource type="Script" uid="uid://cqkssr3hma0u2" path="res://assets/gameplay/entities/state_machine/states/walk/EnemyWalk.gd" id="3_2vb2m"]
+[ext_resource type="Script" uid="uid://bpjw0kwlwo815" path="res://assets/gameplay/entities/state_machine/states/idle/EnemyIdle.gd" id="4_wpcys"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bhv2m"]
+atlas = ExtResource("2_1r2ln")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xloiy"]
+atlas = ExtResource("2_1r2ln")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_lo6hi"]
+atlas = ExtResource("2_1r2ln")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jl7we"]
+atlas = ExtResource("2_1r2ln")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_a2iiy"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bhv2m")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xloiy")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_lo6hi")
+}],
+"loop": true,
+"name": &"idle",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bhv2m")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xloiy")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jl7we")
+}],
+"loop": true,
+"name": &"walk",
+"speed": 5.0
+}]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_x2gvf"]
+radius = 22.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_1r2ln"]
+radius = 5.0
+
+[node name="Entity" instance=ExtResource("1_x2gvf")]
+position = Vector2(0, -8)
+
+[node name="EntityAnimationSprite" parent="." index="0"]
+scale = Vector2(0.99752, 0.992986)
+sprite_frames = SubResource("SpriteFrames_a2iiy")
+animation = &"walk"
+frame_progress = 0.289516
+
+[node name="EntityShape" parent="." index="1"]
+position = Vector2(0, 8)
+shape = SubResource("CircleShape2D_x2gvf")
+
+[node name="EntityShape2" type="CollisionShape2D" parent="." index="2"]
+position = Vector2(-4, -24)
+shape = SubResource("CircleShape2D_1r2ln")
+debug_color = Color(0, 0.6, 0.701961, 0)
+
+[node name="RangeShape" parent="RangeArea" index="0"]
+position = Vector2(0, 8)
+
+[node name="Walk" type="Node" parent="StateMachine" index="0"]
+script = ExtResource("3_2vb2m")
+metadata/_custom_type_script = "uid://cqkssr3hma0u2"
+
+[node name="Idle" type="Node" parent="StateMachine" index="1"]
+script = ExtResource("4_wpcys")
+metadata/_custom_type_script = "uid://bpjw0kwlwo815"

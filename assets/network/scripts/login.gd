@@ -10,7 +10,7 @@ func _ready():
 	WebSocketClient.register_handler("loginSuccess", Callable(self, "_on_login_success"))
 	WebSocketClient.register_handler("loginFailed", Callable(self, "_on_login_failed"))
 
-	var token = TokenStorage.load_lltoken()
+	var token = TokenStorage.get_long_lived_token()
 	if token != "":
 		WebSocketClient.send_action("tokenLogin", {"token": token})
 

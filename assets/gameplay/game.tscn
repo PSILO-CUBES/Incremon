@@ -12,5 +12,6 @@ y_sort_enabled = true
 script = ExtResource("1_8tcog")
 
 [node name="AlliedEntities" type="Node2D" parent="World"]
+y_sort_enabled = true
 
 [node name="UI" parent="." instance=ExtResource("2_y4wl3")]

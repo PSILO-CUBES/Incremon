@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3 uid="uid://bhmrupnp5ffsq"]
+
+[ext_resource type="Script" uid="uid://dtpqrl3n8qs3e" path="res://assets/gameplay/entities/Shadow.gd" id="1_b1pyt"]
+
+[node name="Shadow" type="Node2D"]
+script = ExtResource("1_b1pyt")
+
+[node name="ShadowAnimation2D" type="AnimatedSprite2D" parent="."]
+unique_name_in_owner = true

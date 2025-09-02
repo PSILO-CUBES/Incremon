@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://deppelbb40emd"
-path="res://.godot/imported/Slimie-Portait.png-250c73b16018c0ba326fcd0a38d2c376.ctex"
+uid="uid://cwegjb1ut6u1x"
+path="res://.godot/imported/Gablino-Sheet.png-5cf52abd16ac3f8403d2924f74b74301.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/gameplay/entities/monsters/enemies/slimie/Slimie-Portait.png"
-dest_files=["res://.godot/imported/Slimie-Portait.png-250c73b16018c0ba326fcd0a38d2c376.ctex"]
+source_file="res://assets/gameplay/entities/monsters/enemies/gablino/Gablino-Sheet.png"
+dest_files=["res://.godot/imported/Gablino-Sheet.png-5cf52abd16ac3f8403d2924f74b74301.ctex"]
 
 [params]
 

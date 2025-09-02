@@ -1,21 +1,26 @@
-[gd_scene load_steps=6 format=3 uid="uid://ctj3jtigwf28u"]
+[gd_scene load_steps=7 format=3 uid="uid://ctj3jtigwf28u"]
 
 [ext_resource type="Script" uid="uid://vgixe24i1qtl" path="res://assets/gameplay/entities/state_machine/StateMachine.gd" id="1_0sv6q"]
 [ext_resource type="Script" uid="uid://bp2h7wcue8nj1" path="res://assets/gameplay/entities/Entity.gd" id="1_cacr3"]
 [ext_resource type="Script" uid="uid://xuj5w4yauwkg" path="res://assets/gameplay/entities/components/EntityStateReplicator.gd" id="3_m3lvx"]
 [ext_resource type="Script" uid="uid://b6raehwpav2lt" path="res://assets/gameplay/entities/components/IntentEmitter.gd" id="4_82i6o"]
+[ext_resource type="PackedScene" uid="uid://bhmrupnp5ffsq" path="res://assets/gameplay/entities/Shadow.tscn" id="5_82i6o"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_6rmx6"]
-radius = 7.07107
+radius = 27.0
 
 [node name="Entity" type="CharacterBody2D" groups=["Entities"]]
-collision_layer = 0
-collision_mask = 0
 script = ExtResource("1_cacr3")
 
 [node name="EntityAnimationSprite" type="AnimatedSprite2D" parent="."]
 unique_name_in_owner = true
 texture_filter = 1
+
+[node name="Shadow" parent="." instance=ExtResource("5_82i6o")]
+offset_x = -12.0
+offset_y = 2.0
+shadow_rotation = -15.0
+shadow_opacity = 0.15
 
 [node name="EntityShape" type="CollisionShape2D" parent="."]
 debug_color = Color(0, 0.6, 0.701961, 0)
@@ -27,6 +32,7 @@ shape = SubResource("CircleShape2D_6rmx6")
 debug_color = Color(0, 0.6, 0.701961, 0)
 
 [node name="StateMachine" type="Node" parent="."]
+unique_name_in_owner = true
 script = ExtResource("1_0sv6q")
 
 [node name="StateReplicator" type="Node" parent="."]
@@ -36,3 +42,8 @@ script = ExtResource("3_m3lvx")
 script = ExtResource("4_82i6o")
 
 [node name="Controller" type="Node" parent="."]
+
+[connection signal="body_entered" from="RangeArea" to="." method="_on_range_area_body_entered"]
+[connection signal="body_exited" from="RangeArea" to="." method="_on_range_area_body_exited"]
+
+[editable path="Shadow"]

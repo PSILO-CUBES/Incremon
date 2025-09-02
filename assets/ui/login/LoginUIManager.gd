@@ -91,6 +91,4 @@ func _on_login_failed(payload: Dictionary) -> void:
 
 func _on_create_account_success(payload: Dictionary) -> void:
 	var msg: String = payload.get("message", "Account created successfully")
-	message_label.text = msg
-	message_label.visible = true
-	message_label.modulate.a = 1.0
+	_show_confirmation(msg)

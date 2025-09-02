@@ -11,6 +11,7 @@ func _ready() -> void:
 func _on_state_update(payload: Dictionary) -> void:
 	if payload.get("entityId","") != entity_id:
 		return
+	
 	var s = payload.get("state","")
 	if s == "": return
 	var data = payload.get("payload", {})

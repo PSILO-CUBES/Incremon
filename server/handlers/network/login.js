@@ -1,119 +1,119 @@
-const { v4: uuidv4 } = require("uuid");
 const bcrypt = require("bcrypt");
-const wsRegistry = require("../../wsRegistry");
 
-const dbModule = require("../../db");
+const wsRegistry = require("../../wsRegistry");
+const Player = require("../../schema/Player");
 const LLTokenManager = require("../../tokenManagers/lltokenManager");
 const SLTokenManager = require("../../tokenManagers/sltokenManager");
+const { DEFAULT_PLAYER_DATA } = require("../../defs/playerDefaults");
 
-// { ip: { count, lastAttempt, blockUntil, strikes } }
-const loginAttempts = {};
-const MAX_ATTEMPTS = 5;
-const BASE_BLOCK_MS = 60_000;
+// Pick any usable function from a token manager module.
+// Supports: issue/create/generate/make/sign/new/... OR the module itself being a function.
+function pickTokenFn(mod) {
+  if (!mod) return null;
+  const preferred = [
+    "issue", "create", "generate", "make", "sign", "new",
+    "issueFor", "createFor", "gen", "mint" // mint last, only if it actually exists
+  ];
+  for (const name of preferred) {
+    if (typeof mod[name] === "function") return mod[name].bind(mod);
+  }
+  if (typeof mod === "function") return mod; // module itself is callable
+  const anyFn = Object.keys(mod).find(k => typeof mod[k] === "function");
+  return anyFn ? mod[anyFn].bind(mod) : null;
+}
 
-module.exports = async (ws, data, clientIp) => {
-	const username = data.username;
-	const password = data.password;
+async function getToken(mod, userId, clientIp) {
+  const fn = pickTokenFn(mod);
+  if (!fn) return null;
+  // Some impls accept (userId, ip), others just (userId)
+  return fn.length >= 2 ? fn(userId, clientIp) : fn(userId);
+}
 
-	const now = Date.now();
-	if (!loginAttempts[clientIp]) {
-		loginAttempts[clientIp] = { count: 0, lastAttempt: now, blockUntil: 0, strikes: 0 };
-	}
-	const attemptInfo = loginAttempts[clientIp];
+module.exports = async (ws, data = {}, clientIp) => {
+  try {
+    const username = (data.username || "").trim();
+    const password = data.password || "";
 
-	// Block window
-	if (now < attemptInfo.blockUntil) {
-		return ws.send(JSON.stringify({
-			event: "loginFailed",
-			message: "Too many login attempts. Please try again later."
-		}));
-	}
+    if (!username || !password) {
+      return ws.send(JSON.stringify({
+        event: "loginFailed",
+        message: "Username and password required"
+      }));
+    }
 
-	// Sliding window reset
-	if (now - attemptInfo.lastAttempt > BASE_BLOCK_MS) {
-		attemptInfo.count = 0;
-	}
-	attemptInfo.lastAttempt = now;
+    // Find player
+    const playerDoc = await Player.findOne({ username }).lean();
+    if (!playerDoc) {
+      return ws.send(JSON.stringify({
+        event: "loginFailed",
+        message: "Invalid credentials"
+      }));
+    }
 
-	if (attemptInfo.count >= MAX_ATTEMPTS) {
-		attemptInfo.strikes++;
-		const blockTime = BASE_BLOCK_MS * Math.pow(2, attemptInfo.strikes - 1);
-		attemptInfo.blockUntil = now + blockTime;
-		attemptInfo.count = 0;
-		return ws.send(JSON.stringify({
-			event: "loginFailed",
-			message: `Too many login attempts. Blocked for ${Math.round(blockTime / 1000)}s.`
-		}));
-	}
+    // (Optional) block unverified
+    if (playerDoc.verified === false) {
+      return ws.send(JSON.stringify({
+        event: "loginFailed",
+        message: "Email not verified"
+      }));
+    }
 
-	if (!username || !password) {
-		attemptInfo.count++;
-		return ws.send(JSON.stringify({
-			event: "loginFailed",
-			message: "Username and password required"
-		}));
-	}
+    // Password check
+    const ok = await bcrypt.compare(password, playerDoc.passHash || "");
+    if (!ok) {
+      return ws.send(JSON.stringify({
+        event: "loginFailed",
+        message: "Invalid credentials"
+      }));
+    }
 
-	const db = dbModule.getDb();
-	const playersCollection = db.collection("players");
+    // Ensure stats exist (backfill once)
+    let playerData = playerDoc.playerData;
+    if (!playerData || typeof playerData !== "object") {
+      playerData = { ...DEFAULT_PLAYER_DATA };
+      await Player.updateOne({ _id: playerDoc._id }, { $set: { playerData } });
+    }
 
-	try {
-		const player = await playersCollection.findOne({ username });
-		if (!player) {
-			attemptInfo.count++;
-			return ws.send(JSON.stringify({
-				event: "loginFailed",
-				message: "Account does not exist"
-			}));
-		}
+    const userIdStr = String(playerDoc._id);
 
-		const valid = await bcrypt.compare(password, player.password);
-		if (!valid) {
-			attemptInfo.count++;
-			return ws.send(JSON.stringify({
-				event: "loginFailed",
-				message: "Invalid credentials"
-			}));
-		}
+    // Issue tokens using whatever function your managers expose
+    const llToken = await getToken(LLTokenManager, userIdStr, clientIp);
+    const slToken = await getToken(SLTokenManager, userIdStr, clientIp);
 
-		if (!player.verified) {
-			return ws.send(JSON.stringify({
-				event: "loginFailed",
-				message: "Account not verified. Please check your email."
-			}));
-		}
+    if (!llToken || !slToken) {
+      console.error("Token manager missing a callable issue function.", {
+        llKeys: Object.keys(LLTokenManager || {}),
+        slKeys: Object.keys(SLTokenManager || {})
+      });
+      return ws.send(JSON.stringify({
+        event: "loginFailed",
+        message: "Token service unavailable"
+      }));
+    }
 
-		console.log(`-* Player logged in: ${username}`);
+    if (typeof wsRegistry.bindPlayer === "function") {
+      wsRegistry.bindPlayer(ws, userIdStr);
+    }
 
-		// Normalize to string ID for all app-side uses
-		const playerId = player._id.toString();
-		ws.playerId = playerId;
-		ws.username = player.username;
-		wsRegistry.set(playerId, ws);
+    ws.username = playerDoc.username;
+    ws.hasSpawned = ws.hasSpawned || false;
 
-		const llToken = await LLTokenManager.createToken(playerId);
-		ws.token = llToken;
-
-		const slToken = SLTokenManager.createToken(playerId);
-		ws.short_lived_token = slToken;
-
-		// Reset rate limiting
-		attemptInfo.count = 0;
-		attemptInfo.strikes = 0;
-		attemptInfo.blockUntil = 0;
-
-		ws.send(JSON.stringify({
-			event: "loginSuccess",
-			playerId,                 // string
-			username: player.username,
-			longLivedToken: llToken,
-			shortLivedToken: slToken
-		}));
-	} catch (err) {
-		console.error("MongoDB error:", err);
-		ws.send(JSON.stringify({
-			event: "loginFailed",
-			message: "Server error"
-		}));
-	}
+    // Respond
+    ws.send(JSON.stringify({
+      event: "loginSuccess",
+      playerId: userIdStr,
+      username: playerDoc.username,
+      longLivedToken: llToken,
+      shortLivedToken: slToken,
+      playerData, // { hp, atk, def, acc, spd, lvl, exp }
+    }));
+  } catch (err) {
+    console.error("login error:", err);
+    try {
+      ws.send(JSON.stringify({
+        event: "loginFailed",
+        message: "Server error"
+      }));
+    } catch {}
+  }
 };

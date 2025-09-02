@@ -47,6 +47,7 @@ func _apply(stateName: String, payload := {}) -> void:
 	if current_state and current_state.has_method("_exit"):
 		current_state._exit()
 	current_state = next
+	get_parent().current_state = current_state.name
 	# If your states want data from server, you can read it from the FSM each frame:
 	self.set_meta("last_payload", payload)
 	if current_state.has_method("_enter"):

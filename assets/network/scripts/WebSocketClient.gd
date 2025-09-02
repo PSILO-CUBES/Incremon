@@ -23,6 +23,8 @@ const CALL_EVENT_AND_PAYLOAD := 2        # call: (event, payload)
 var sl_token_refresh: SlTokenRefresh
 
 func _ready() -> void:
+	# Load cached auth/profile once at startup so tokens & username are available
+	TokenStorage.load_data()
 	set_process(true)
 
 # ----------------- Public API -----------------
@@ -61,12 +63,15 @@ func clear_handlers(event: String = "") -> void:
 func send_action(action: String, data: Dictionary = {}) -> void:
 	var msg := {
 		"action": action,
-		"shortLivedToken": TokenStorage.get_sltoken()
+		"shortLivedToken": TokenStorage.get_short_lived_token()
 	}
-	
 	for k in data.keys():
 		msg[k] = data[k]
-	ws.send_text(JSON.stringify(msg))
+	# Guard: only send when socket is open
+	if ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
+		ws.send_text(JSON.stringify(msg))
+	else:
+		push_warning("send_action while socket not open: %s" % action)
 
 # ----------------- Internals ------------------
 
@@ -102,24 +107,30 @@ func _process(_delta: float) -> void:
 					payload.erase("type")
 					payload.erase("op")
 
-				# Token side-effects for convenience
+				# -------- Token side-effects (using your TokenStorage API) --------
 				if ev == "loginSuccess":
-					var ll = parsed.get("longLivedToken", "")
-					var sl = parsed.get("shortLivedToken", "")
-					if ll != "":
-						TokenStorage.save_lltoken(ll)
-					if sl != "":
-						TokenStorage.set_sltoken(sl)
-				
-					# Start SL refresh once we’re authenticated
+					# Server typically returns: playerId, username, longLivedToken, shortLivedToken, (optional) shortLivedExpiresAt
+					TokenStorage.set_login_success(parsed)
+
+					# Start/ensure SL refresh once we’re authenticated
 					if sl_token_refresh == null:
 						sl_token_refresh = SlTokenRefresh.new()
 						add_child(sl_token_refresh)
-					sl_token_refresh.start_sl_refresh(ws)  # default 9min cadence
+					sl_token_refresh.start_sl_refresh(ws)  # default cadence inside the script
+
 				elif ev == "slTokenRefreshed":
-					var new_sl = parsed.get("shortLivedToken", "")
+					# Server typically returns: shortLivedToken, (optional) shortLivedExpiresAt
+					var new_sl := str(parsed.get("shortLivedToken", ""))
+					var sl_exp := int(parsed.get("shortLivedExpiresAt", 0))
 					if new_sl != "":
-						TokenStorage.set_sltoken(new_sl)
+						# Keep existing LL as-is; update SL only
+						TokenStorage.set_tokens(
+							TokenStorage.get_long_lived_token(),
+							new_sl,
+							sl_exp
+						)
+
+				# -----------------------------------------------------------------
 
 				_dispatch(ev, payload)
 			else:

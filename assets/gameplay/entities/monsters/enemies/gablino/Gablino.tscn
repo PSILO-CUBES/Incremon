@@ -1,0 +1,78 @@
+[gd_scene load_steps=11 format=3 uid="uid://baetk2e5tas15"]
+
+[ext_resource type="PackedScene" uid="uid://cn724itkciu67" path="res://assets/gameplay/entities/monsters/enemies/Enemies.tscn" id="1_xmsub"]
+[ext_resource type="Texture2D" uid="uid://cwegjb1ut6u1x" path="res://assets/gameplay/entities/monsters/enemies/gablino/Gablino-Sheet.png" id="2_f5w21"]
+[ext_resource type="Script" uid="uid://cmbpt6pw10qix" path="res://assets/gameplay/entities/components/AIController.gd" id="3_1sdu4"]
+[ext_resource type="Script" uid="uid://cqkssr3hma0u2" path="res://assets/gameplay/entities/state_machine/states/walk/EnemyWalk.gd" id="4_pq6lj"]
+[ext_resource type="Script" uid="uid://bpjw0kwlwo815" path="res://assets/gameplay/entities/state_machine/states/idle/EnemyIdle.gd" id="5_5p4jw"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_f5w21"]
+atlas = ExtResource("2_f5w21")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1sdu4"]
+atlas = ExtResource("2_f5w21")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7kx3c"]
+atlas = ExtResource("2_f5w21")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_wmp4y"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_f5w21")
+}],
+"loop": true,
+"name": &"idle",
+"speed": 2.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1sdu4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7kx3c")
+}],
+"loop": true,
+"name": &"walk",
+"speed": 2.0
+}]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_f5w21"]
+radius = 11.0
+height = 44.0
+
+[node name="Enemy" instance=ExtResource("1_xmsub")]
+position = Vector2(0, -28)
+collision_layer = 0
+collision_mask = 0
+
+[node name="EntityAnimationSprite" parent="." index="0"]
+sprite_frames = SubResource("SpriteFrames_wmp4y")
+animation = &"walk"
+frame_progress = 0.517622
+
+[node name="EntityShape" parent="." index="2"]
+shape = SubResource("CapsuleShape2D_f5w21")
+
+[node name="RangeArea" parent="." index="3"]
+collision_layer = 2
+collision_mask = 2
+
+[node name="StateMachine" parent="." index="4"]
+unique_name_in_owner = false
+
+[node name="Walk" type="Node" parent="StateMachine" index="0"]
+script = ExtResource("4_pq6lj")
+metadata/_custom_type_script = "uid://cqkssr3hma0u2"
+
+[node name="Idle" type="Node" parent="StateMachine" index="1"]
+script = ExtResource("5_5p4jw")
+metadata/_custom_type_script = "uid://bpjw0kwlwo815"
+
+[node name="Controller" parent="." index="7"]
+script = ExtResource("3_1sdu4")
+
+[editable path="Shadow"]
