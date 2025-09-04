@@ -9,11 +9,15 @@ func _ready() -> void:
 	entity_id = get_parent().entity_id
 
 func _on_state_update(payload: Dictionary) -> void:
+	# WebSocketClient already passes the *inner* payload here.
+	# Shape: { entityId, state, dir?, ... }
 	if payload.get("entityId","") != entity_id:
 		return
-	
+
 	var s = payload.get("state","")
-	if s == "": return
-	var data = payload.get("payload", {})
+	if s == "":
+		return
+
+	# Pass the FULL payload to the FSM so states can read 'last_payload' (e.g., dir)
 	if sm and sm.has_method("apply_state"):
-		sm.apply_state(s, data)
+		sm.apply_state(s, payload)

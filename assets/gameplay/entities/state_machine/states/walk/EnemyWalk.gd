@@ -1,60 +1,49 @@
 extends WalkState
 class_name EnemyWalk
 
-# Movement speed cached from server-provided stats (entity.data.spd)
-var _speed: float = 60.0
-var _entity: Node = null
-
-func _ready() -> void:
-	_entity = _find_entity_root()
-	_refresh_speed()
+var _base_speed: float = 60.0
+var _prev_pos: Vector2 = Vector2.ZERO
+var _has_prev: bool = false
 
 func _enter() -> void:
 	super._enter()
-	# If your FSM calls _enter on activation
 	_refresh_speed()
+	# Ensure walk anim plays while snapshots move the body
+	if entity and entity.has_anim("walk"):
+		entity.animation_sprite.play("walk")
 
-func _physics_update(dt: float) -> void:
-	super._physics_update(dt)
-	
-	if _entity == null:
-		return
+func _exit() -> void:
+	super._exit()
 
-	# Read desired direction set by controllers/net (Vector2 or null)
-	var dir_val = _entity.get("move_dir")  # safe even if property missing → null
-	var dir: Vector2 = Vector2.ZERO
-	if typeof(dir_val) == TYPE_VECTOR2:
-		dir = dir_val
-
-	var vel: Vector2 = dir * _speed
-
-	# Single source of truth: apply motion here
-	if _entity is CharacterBody2D:
-		_entity.velocity = vel
-		_entity.move_and_slide()
-	else:
-		# Fallback if you aren't using CharacterBody2D
-		if _entity.has_method("get_global_position") and _entity.has_method("set_global_position"):
-			var p: Vector2 = _entity.get_global_position()
-			_entity.set_global_position(p + vel * dt)
-
-# --- Helpers ---------------------------------------------------------------
-
-func _find_entity_root() -> Node:
-	# Walk up until we find a node that *looks like* an entity:
-	# - has 'move_dir' (Vector2) and 'data' (Dictionary with 'spd')
-	var n: Node = get_parent()
-	while n:
-		var md = n.get("move_dir") if n.has_method("get") else null
-		var data = n.get("data") if n.has_method("get") else null
-		if typeof(md) == TYPE_VECTOR2 and typeof(data) == TYPE_DICTIONARY:
-			return n
-		n = n.get_parent()
-	return null
+func _physics_update(_delta: float) -> void:
+	# We do NOT move here anymore. WorldPosApplier already set global_position
+	# from authoritative snapshots. Keep velocity near zero so base WalkState
+	# doesn't try to steer or create extra slide.
+	if entity:
+		entity.velocity = Vector2.ZERO
+	# super handles flip if velocity changed; we handle facing from snapshots in apply_server_snapshot()
 
 func _refresh_speed() -> void:
-	if _entity == null:
+	_base_speed = 60.0
+	if entity and typeof(entity.data) == TYPE_DICTIONARY:
+		var stats := entity.data.get("stats", {}) as Dictionary
+		if typeof(stats) == TYPE_DICTIONARY and stats.has("spd"):
+			_base_speed = float(stats["spd"])
+
+# Called by WorldPosApplier every time we apply a smoothed server position.
+# Use this to keep the sprite's facing coherent with actual motion.
+func apply_server_snapshot(snapshot: Dictionary) -> void:
+	if entity == null:
 		return
-	var d = _entity.get("data")  # Dictionary or null
-	if typeof(d) == TYPE_DICTIONARY and d.has("spd"):
-		_speed = float(d["spd"])
+
+	var pos_d := snapshot.get("pos", {}) as Dictionary
+	var server_pos := Vector2(float(pos_d.get("x", 0.0)), float(pos_d.get("y", 0.0)))
+
+	if _has_prev:
+		var dx := server_pos.x - _prev_pos.x
+		if absf(dx) > 0.1:
+			entity.last_facing_left = dx < 0.0
+			entity.animation_sprite.flip_h = entity.last_facing_left
+
+	_prev_pos = server_pos
+	_has_prev = true

@@ -21,9 +21,9 @@ func _physics_update(delta: float) -> void:
 		dir.y -= 1
 	
 	if dir != Vector2.ZERO:
-		dir = dir.normalized()
+		entity.move_dir = dir.normalized()
 	
-	var velocity = dir * entity.data.stats.spd
+	var velocity = entity.move_dir * entity.data.stats.spd
 	entity.velocity = velocity
 	
 	if entity.has_method("move_and_slide"):

@@ -8,7 +8,7 @@ module.exports = {
     
     // Core stats (authoritative)
     hp: 5,
-    spd: 5,
+    spd: 50,
     atk: 1,
 
     // Client scene path (the client already has this resource locally)
@@ -17,8 +17,9 @@ module.exports = {
     // Extra info (tags, drops, etc.)
     tags: ["bones", "basic"],
 
-    // How far mobs can spawn from each other
-    spawnSeparation: 40, // pixels
+    // Collision + spawn spacing
+    collisionRadius: 20,      // <— add this to tune blocking feel per mob
+    spawnSeparation: 40,      // pixels
   },
 
   // Add more enemies here...

@@ -14,6 +14,8 @@ var current_state : String
 
 var data : Dictionary
 
+var move_dir : Vector2 = Vector2.ZERO
+
 func has_anim(anim: String) -> bool:
 	# Safely check if this AnimatedSprite2D has an animation by name.
 	if animation_sprite == null:

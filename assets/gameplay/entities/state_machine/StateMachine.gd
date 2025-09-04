@@ -3,10 +3,13 @@ class_name StateMachine
 
 @export var server_authoritative := true
 @export var current_state: Node
-var states := {}
+
+var states = {}
+var array : Array = []
 
 func _ready() -> void:
 	states.clear()
+	array.append('')
 	for child in get_children():
 		# Collect children as states; names become keys ("idle", "walk", etc.)
 		states[child.name.to_lower()] = child
