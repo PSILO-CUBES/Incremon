@@ -2,7 +2,6 @@ extends Node
 
 var entity_id: String = ""
 
-# Map high-level intents to the *wire* action names your server expects.
 const INTENT_TO_ACTION := {
 	"moveStart": "moveIntentStart",
 	"moveStop":  "moveIntentStop",
@@ -17,17 +16,15 @@ func send_intent(intent: String, payload: Dictionary = {}) -> void:
 		return
 	var action = INTENT_TO_ACTION.get(intent, "")
 	if action == "":
-		push_warning("Unknown intent: %s" % intent)
 		return
-
-	var msg := {"entityId": entity_id}
-	# Shallow-merge payload keys (e.g., {"dir": {...}})
+	var msg := {
+		"action": action,
+		"entityId": entity_id,
+	}
 	for k in payload.keys():
 		msg[k] = payload[k]
-
 	WebSocketClient.send_action(action, msg)
 
-# Optional convenience wrappers
 func move_start(dir: Vector2) -> void:
 	send_intent("moveStart", {"dir": {"x": dir.x, "y": dir.y}})
 
@@ -35,5 +32,6 @@ func move_stop() -> void:
 	send_intent("moveStop")
 
 func attack_start() -> void:
-	send_intent("moveStop")
+	# Do NOT send moveStop here — the server freezes movement during attack
+	# and will auto-resume if the player was moving.
 	send_intent("attack")

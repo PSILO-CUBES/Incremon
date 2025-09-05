@@ -2,6 +2,7 @@ extends	State
 class_name AttackState
 
 func _enter():
+	print('attack')
 	super._enter()
 
 func _exit():

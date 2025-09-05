@@ -1,4 +1,4 @@
-const DEFS = require("./stateDefs");
+const DEFS = require("../defs/stateDefs");
 const Store = require("../world/entityStore");
 
 function allowed(playerId, entityId, intent) {
