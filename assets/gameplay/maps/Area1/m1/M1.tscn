@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://b836lojfu33c2"]
+[gd_scene load_steps=4 format=3 uid="uid://beskndflo8yck"]
 
 [ext_resource type="PackedScene" uid="uid://2haorl5bahq4" path="res://assets/gameplay/maps/MapTemplate.tscn" id="1_h5ce4"]
-[ext_resource type="Texture2D" uid="uid://bs4gi0ii18rkb" path="res://assets/gameplay/maps/Area1/test2_snap2.png" id="2_hbrh4"]
+[ext_resource type="Texture2D" uid="uid://bs4gi0ii18rkb" path="res://assets/gameplay/maps/Area1/m1/test2_snap2.png" id="2_hbrh4"]
+[ext_resource type="PackedScene" uid="uid://sxk61o4rq6df" path="res://assets/gameplay/maps/props/crater/Crater.tscn" id="3_q6rkg"]
 
 [node name="Map" instance=ExtResource("1_h5ce4")]
 
@@ -12,3 +13,32 @@ position = Vector2(960, 538.5)
 position = Vector2(960, 540)
 scale = Vector2(0.5, 0.5)
 texture = ExtResource("2_hbrh4")
+
+[node name="Crater" parent="." index="3" instance=ExtResource("3_q6rkg")]
+position = Vector2(258, 231)
+scale = Vector2(0.5, 0.5)
+
+[node name="Crater2" parent="." index="4" instance=ExtResource("3_q6rkg")]
+position = Vector2(327, 733)
+scale = Vector2(0.35, 0.35)
+
+[node name="AnimatedSprite2D" parent="Crater2" index="0"]
+frame = 2
+
+[node name="Crater3" parent="." index="5" instance=ExtResource("3_q6rkg")]
+position = Vector2(1476, 328)
+scale = Vector2(0.45, 0.45)
+
+[node name="AnimatedSprite2D" parent="Crater3" index="0"]
+frame = 0
+
+[node name="Crater4" parent="." index="6" instance=ExtResource("3_q6rkg")]
+position = Vector2(1394, 761)
+scale = Vector2(0.65, 0.65)
+
+[node name="AnimatedSprite2D" parent="Crater4" index="0"]
+frame = 3
+
+[editable path="Crater2"]
+[editable path="Crater3"]
+[editable path="Crater4"]

@@ -14,6 +14,7 @@ const routes = {
   
   moveIntentStart: require("./game/entities/move/moveIntentStart"),
   moveIntentStop:  require("./game/entities/move/moveIntentStop"),
+  attackIntentStart: require("./game/entities/combat/attackIntentStart")
 };
 
 // ---------- security knobs ----------

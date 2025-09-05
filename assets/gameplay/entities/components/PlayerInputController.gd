@@ -29,3 +29,11 @@ func _process(_dt: float) -> void:
 
 	was_moving = moving
 	last_qdir = qdir
+
+func _unhandled_input(event: InputEvent) -> void:
+	# Trigger an attack intent when the player clicks LMB
+	if event is InputEventMouseButton \
+		and event.button_index == MOUSE_BUTTON_LEFT \
+		and event.pressed \
+		and not event.is_echo():
+		emitter.attack_start()

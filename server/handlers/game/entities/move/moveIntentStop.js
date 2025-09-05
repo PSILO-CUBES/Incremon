@@ -11,6 +11,7 @@ module.exports = ( ws, data = {} ) => {
 
   // Clear server-side intended direction so the ticker stops moving
   Movement.onMoveStop(ws.playerId, entityId);
+  console.log('stopped moving')
 
   const ent = Store.get(ws.playerId, entityId);
   ws.send(JSON.stringify({

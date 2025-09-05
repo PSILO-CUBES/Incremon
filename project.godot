@@ -29,6 +29,7 @@ window/stretch/mode="viewport"
 [global_group]
 
 Entities=""
+Solids=""
 
 [input]
 

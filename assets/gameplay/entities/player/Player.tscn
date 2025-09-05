@@ -1,7 +1,6 @@
-[gd_scene load_steps=18 format=3 uid="uid://b6rn16sev4kge"]
+[gd_scene load_steps=16 format=3 uid="uid://b6rn16sev4kge"]
 
 [ext_resource type="PackedScene" uid="uid://ctj3jtigwf28u" path="res://assets/gameplay/entities/Entity.tscn" id="1_0dxid"]
-[ext_resource type="Texture2D" uid="uid://dkphcx5v0fmsd" path="res://assets/gameplay/entities/player/imgs/ayylmao-idle.png" id="2_2guys"]
 [ext_resource type="Script" uid="uid://clobg55fvwou2" path="res://assets/gameplay/entities/player/Player.gd" id="2_xsdfg"]
 [ext_resource type="Texture2D" uid="uid://diljujg6ciqpo" path="res://assets/gameplay/entities/player/imgs/ayylmao-walk.png" id="3_0436n"]
 [ext_resource type="Script" uid="uid://cfel7b7j2htpq" path="res://assets/gameplay/entities/player/PlayerCamera.gd" id="4_xsdfg"]
@@ -10,56 +9,52 @@
 [ext_resource type="Script" uid="uid://cgd8l5bogqppc" path="res://assets/gameplay/entities/state_machine/states/attack/PlayerAttack.gd" id="7_2guys"]
 [ext_resource type="Script" uid="uid://dmvms81lo6mcf" path="res://assets/gameplay/entities/components/PlayerInputController.gd" id="8_0436n"]
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_pm0qs"]
-atlas = ExtResource("2_2guys")
+[sub_resource type="AtlasTexture" id="AtlasTexture_0436n"]
+atlas = ExtResource("3_0436n")
 region = Rect2(0, 0, 96, 96)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_644yx"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_xsdfg"]
 atlas = ExtResource("3_0436n")
 region = Rect2(96, 0, 96, 96)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_mxtiq"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_8darc"]
 atlas = ExtResource("3_0436n")
 region = Rect2(192, 0, 96, 96)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_li2qy"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_b8kd6"]
 atlas = ExtResource("3_0436n")
 region = Rect2(288, 0, 96, 96)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_sykou"]
-atlas = ExtResource("3_0436n")
-region = Rect2(0, 0, 96, 96)
-
-[sub_resource type="SpriteFrames" id="SpriteFrames_8m6vl"]
+[sub_resource type="SpriteFrames" id="SpriteFrames_ce7au"]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_pm0qs")
+"texture": SubResource("AtlasTexture_0436n")
 }],
-"loop": false,
+"loop": true,
 "name": &"idle",
-"speed": 0.0
+"speed": 5.0
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_644yx")
+"texture": SubResource("AtlasTexture_0436n")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_mxtiq")
+"texture": SubResource("AtlasTexture_xsdfg")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_li2qy")
+"texture": SubResource("AtlasTexture_8darc")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_sykou")
+"texture": SubResource("AtlasTexture_b8kd6")
 }],
 "loop": true,
 "name": &"walk",
-"speed": 4.0
+"speed": 5.0
 }]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_bgs2f"]
-radius = 29.0
+radius = 25.0
 height = 102.0
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_2guys"]
@@ -86,8 +81,8 @@ horizontal_alignment = 1
 vertical_alignment = 1
 metadata/_edit_use_anchors_ = true
 
-[node name="EntityAnimationSprite" parent="." index="1"]
-sprite_frames = SubResource("SpriteFrames_8m6vl")
+[node name="AnimatedSprite2D" parent="." index="1"]
+sprite_frames = SubResource("SpriteFrames_ce7au")
 animation = &"idle"
 
 [node name="Camera2D" type="Camera2D" parent="." index="2"]

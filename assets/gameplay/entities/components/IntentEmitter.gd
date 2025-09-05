@@ -6,6 +6,7 @@ var entity_id: String = ""
 const INTENT_TO_ACTION := {
 	"moveStart": "moveIntentStart",
 	"moveStop":  "moveIntentStop",
+	"attack":    "attackIntentStart",
 }
 
 func _ready() -> void:
@@ -26,9 +27,13 @@ func send_intent(intent: String, payload: Dictionary = {}) -> void:
 
 	WebSocketClient.send_action(action, msg)
 
-# Optional convenience wrappers, if you still want direct calls elsewhere
+# Optional convenience wrappers
 func move_start(dir: Vector2) -> void:
 	send_intent("moveStart", {"dir": {"x": dir.x, "y": dir.y}})
 
 func move_stop() -> void:
 	send_intent("moveStop")
+
+func attack_start() -> void:
+	send_intent("moveStop")
+	send_intent("attack")

@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://b4rxnp7oq3tl2"]
 
 [ext_resource type="Script" uid="uid://bh05a5idjlfb" path="res://assets/gameplay/world/World.gd" id="1_8tcog"]
-[ext_resource type="PackedScene" uid="uid://cpy51tuvsfyvr" path="res://assets/ui/ui.tscn" id="2_y4wl3"]
+[ext_resource type="PackedScene" uid="uid://cpy51tuvsfyvr" path="res://assets/ui/UI.tscn" id="2_p6qvd"]
 
 [node name="Game" type="Node2D"]
 y_sort_enabled = true
@@ -14,4 +14,4 @@ script = ExtResource("1_8tcog")
 [node name="AlliedEntities" type="Node2D" parent="World"]
 y_sort_enabled = true
 
-[node name="UI" parent="." instance=ExtResource("2_y4wl3")]
+[node name="UI" parent="." instance=ExtResource("2_p6qvd")]

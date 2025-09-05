@@ -12,7 +12,7 @@ radius = 27.0
 [node name="Entity" type="CharacterBody2D" groups=["Entities"]]
 script = ExtResource("1_cacr3")
 
-[node name="EntityAnimationSprite" type="AnimatedSprite2D" parent="."]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 unique_name_in_owner = true
 texture_filter = 1
 

@@ -47,9 +47,9 @@ height = 44.0
 [node name="Enemy" instance=ExtResource("1_xmsub")]
 position = Vector2(0, -28)
 
-[node name="EntityAnimationSprite" parent="." index="0"]
+[node name="AnimatedSprite2D" parent="." index="0"]
 sprite_frames = SubResource("SpriteFrames_wmp4y")
-animation = &"walk"
+animation = &"idle"
 
 [node name="EntityShape" parent="." index="2"]
 shape = SubResource("CapsuleShape2D_f5w21")

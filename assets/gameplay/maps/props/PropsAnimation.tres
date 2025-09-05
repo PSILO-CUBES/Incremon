@@ -1,0 +1,73 @@
+[gd_resource type="SpriteFrames" load_steps=11 format=3 uid="uid://d86gp0e85vne"]
+
+[ext_resource type="Texture2D" uid="uid://7mov48v67q6s" path="res://assets/gameplay/maps/props/crater/craters.png" id="1_5i0bb"]
+[ext_resource type="Texture2D" uid="uid://drjb1hgisr8rg" path="res://assets/gameplay/maps/props/mushrooms/mushrooms-sheet.png" id="2_y0y25"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qrwh2"]
+atlas = ExtResource("1_5i0bb")
+region = Rect2(0, 0, 512, 300)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_w5q74"]
+atlas = ExtResource("1_5i0bb")
+region = Rect2(512, 0, 512, 300)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xcvbp"]
+atlas = ExtResource("1_5i0bb")
+region = Rect2(0, 300, 512, 300)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4riix"]
+atlas = ExtResource("1_5i0bb")
+region = Rect2(512, 300, 512, 300)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_507ri"]
+atlas = ExtResource("2_y0y25")
+region = Rect2(0, 0, 512, 512)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xj6s1"]
+atlas = ExtResource("2_y0y25")
+region = Rect2(512, 0, 512, 512)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vbmea"]
+atlas = ExtResource("2_y0y25")
+region = Rect2(0, 512, 512, 512)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_yia12"]
+atlas = ExtResource("2_y0y25")
+region = Rect2(512, 512, 512, 512)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qrwh2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_w5q74")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xcvbp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4riix")
+}],
+"loop": false,
+"name": &"craters",
+"speed": 0.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_507ri")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xj6s1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vbmea")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_yia12")
+}],
+"loop": false,
+"name": &"mushrooms",
+"speed": 0.0
+}]

@@ -7,7 +7,7 @@ class_name Entity
 @export var is_ally : bool = false
 @export var is_boss : bool = false
 
-@onready var animation_sprite: AnimatedSprite2D = %EntityAnimationSprite
+@onready var animation_sprite: AnimatedSprite2D = %AnimatedSprite2D
 
 var last_facing_left : bool = false
 var current_state : String

@@ -1,9 +1,0 @@
-{
-  "tackle": {
-	"duration": 0.6,
-	"cooldown": 1.0,
-	"damage": 10,
-	"effect": "knockback",
-	"range": 64
-  },
-}

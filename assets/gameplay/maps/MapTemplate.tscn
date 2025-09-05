@@ -15,6 +15,7 @@ shape = SubResource("RectangleShape2D_gblyj")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 z_index = -5
+texture_filter = 1
 
 [node name="EnemyEntities" type="Node2D" parent="."]
 y_sort_enabled = true

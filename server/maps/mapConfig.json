@@ -1,15 +1,15 @@
 {
   "area1/m1": {
-    "version": 1,
-    "spawns": [{ "x": 320, "y": 320 }],
+	"version": 1,
+	"spawns": [{ "x": 320, "y": 320 }],
 		"spawnRatePerSec" : 5,
   	"burstMin" : 1,
   	"burstMax" : 1,
   	"maxAliveOnMap" : 3,
-    "spawners": [
-      { "id": "m1-s1", "x": 520,  "y": 420, "radius": 96,  "mobType": "gablino" },
-      { "id": "m1-s2", "x": 880,  "y": 560, "radius": 128, "mobType": "gablino" },
-      { "id": "m1-s3", "x": 1240, "y": 300, "radius": 80,  "mobType": "gablino" }
-    ]
+	"spawners": [
+	  { "id": "m1-s1", "x": 520,  "y": 420, "radius": 96,  "mobType": "gablino" },
+	  { "id": "m1-s2", "x": 880,  "y": 560, "radius": 128, "mobType": "gablino" },
+	  { "id": "m1-s3", "x": 1240, "y": 300, "radius": 80,  "mobType": "gablino" }
+	]
   }
 }

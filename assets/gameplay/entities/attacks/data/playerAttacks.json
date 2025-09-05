@@ -1,9 +1,0 @@
-{
-  "swing": {
-	"duration": 0.5,
-	"cooldown": 1.0,
-	"damage": 10,
-	"effect": "knockback",
-	"range": 64
-  },
-}
