@@ -4,7 +4,7 @@ const WebSocket = require("ws");
 const socketsByPlayer = new Map();
 
 // Soft backpressure limit: if socket is too backed up, drop the message
-const OUTBOUND_SOFT_LIMIT = Number(process.env.WS_OUTBOUND_SOFT_LIMIT || 256 * 1024); // 256KB buffered
+const OUTBOUND_SOFT_LIMIT = 256 * 1024; // 256KB buffered
 
 /** Return the WebSocket for a player or null. */
 function get(playerId) {

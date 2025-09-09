@@ -7,7 +7,6 @@ function allowed(playerId, entityId, intent) {
   const ent = Store.get(playerId, entityId);
   if (!ent) return { ok: false, reason: "unknownEntity" };
 
-  // if (ent.type != 'player') console.log(ent.state)
   const def = DEFS[ent.type] || DEFS.player || {};
   const row = def[ent.state] || {};
   const rule = row[intent];

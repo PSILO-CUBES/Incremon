@@ -3,78 +3,73 @@
 // Server-authoritative movement (fixed tick) with continuous collision vs MOVING entities
 // using a frozen world snapshot, then a static push-out vs MAP PROPS from colliderRegistry.
 //
-// Core fix: build a per-tick POS SNAPSHOT and pass it into collision so sweeps never
-// read live, already-mutated positions (which can cause slip/teleport).
+// Key fix in this version:
+//   The per-tick POS SNAPSHOT now includes { type, mobType, mapId, instanceId, entityId }
+//   so collision.js can correctly compute radii and map-scoped collisions.
+//   (Previously the snapshot only had { x, y, r }, which broke both entity and wall collisions.)
 //
 // Public API:
 //   onMoveStart(playerId, entityId, dir)
 //   onMoveStop(playerId, entityId)
 //   setDir(playerId, entityId, dir)    // for server AI
 //
-const Store       = require("../world/entityStore")
-const Collide     = require("./collision")
-const Colliders   = require("../maps/colliderRegistry")
-const { getMapInfo } = require("../maps/mapRegistry")
-const ENEMIES     = require("../defs/enemiesConfig")
+// Conventions: camelCase, no semicolons.
+
+const FSM              = require("../systems/fsm")
+const Store            = require("../world/entityStore")
+const Collide          = require("./collision")
+const ENEMIES          = require("../defs/enemiesConfig")
 const { DEFAULT_PLAYER_DATA } = require("../defs/playerDefaults")
+const Colliders        = require("../maps/colliderRegistry")
+const { getMapInfo }   = require("../maps/mapRegistry")
 
-// ---------- fixed tick ----------
-const TICK_HZ = 24
-const TICK_MS = Math.floor(1000 / TICK_HZ)
+// ─────────────────────────────────────────────────────────────────────────────
+// Ticking
+// ─────────────────────────────────────────────────────────────────────────────
+const TICK_MS = 50  // ~20Hz fixed tick
 
-const INTENTS   = new Map()   // Map<playerId, Map<entityId, {x,y}>>
-const LAST_POS  = new Map()   // Map<playerId, Map<entityId, {x,y}>>
-let   _last     = Date.now()
+// Per-player movement intents: Map<playerId, Map<entityId, {x,y}>>
+const INTENTS = new Map()
 
-function _sub(map, playerId) {
-  let m = map.get(playerId)
-  if (!m) { m = new Map(); map.set(playerId, m) }
+// Last known positions (for velocity indexing): Map<playerId, Map<entityId, {x,y}>>
+const LAST_POS = new Map()
+
+function _sub(root, key) {
+  let m = root.get(String(key))
+  if (!m) { m = new Map(); root.set(String(key), m) }
   return m
 }
+
 function _normDir(d) {
-  const dx = Number(d?.x), dy = Number(d?.y)
-  if (!Number.isFinite(dx) || !Number.isFinite(dy)) return { x: 0, y: 0 }
-  const len = Math.hypot(dx, dy)
+  const x = Number(d?.x) || 0
+  const y = Number(d?.y) || 0
+  const len = Math.hypot(x, y)
   if (len <= 1e-6) return { x: 0, y: 0 }
-  return { x: dx / len, y: dy / len }
-}
-
-// Start/refresh a movement intent for an entity.
-function onMoveStart(playerId, entityId, dir) {
-  if (!playerId || !entityId) return
-  _sub(INTENTS, playerId).set(String(entityId), _normDir(dir))
-
-  const ent = Store.get(playerId, entityId)
-  if (ent && ent.state !== "walk") {
-    Store.setState(playerId, entityId, "walk")
-  }
-}
-
-// AI helper alias
-function setDir(playerId, entityId, dir) {
-  return onMoveStart(playerId, entityId, dir)
-}
-
-function onMoveStop(playerId, entityId) {
-  if (!playerId || !entityId) return
-  const sub = INTENTS.get(playerId)
-  if (sub) sub.delete(String(entityId))
-
-  const ent = Store.get(playerId, entityId)
-  if (ent && ent.state !== "idle") {
-    Store.setState(playerId, entityId, "idle")
-  }
+  // already normalized on client, but guard anyway
+  const nx = x / len
+  const ny = y / len
+  // tiny deadzone to avoid micro creep
+  return (Math.abs(nx) < 1e-4 && Math.abs(ny) < 1e-4) ? { x: 0, y: 0 } : { x: nx, y: ny }
 }
 
 function _speedOf(ent) {
   if (!ent) return 0
+
   if (ent.type === "player") {
+    const s = ent.stats || {}
+    const spd = Number(s.spd)
+    if (Number.isFinite(spd)) return spd
     return Number(DEFAULT_PLAYER_DATA?.spd) || 200
   }
-  if (ent.type === "mob" || ent.mobType) {
-    const def = ent.mobType ? ENEMIES[ent.mobType] : null
+
+  if (ent.type === "mob") {
+    const s = ent.stats || {}
+    const spd = Number(s.spd)
+    if (Number.isFinite(spd)) return spd
+    const def = ENEMIES[ent.mobType]
     return Number(def?.spd) || 50
   }
+
   return 0
 }
 
@@ -87,12 +82,10 @@ function _integrate(ent, dir, dtSec) {
   return { prev: { x: x0, y: y0 }, wish: { x: x0 + dx, y: y0 + dy } }
 }
 
-// Clamp to map bounds, preferring collider JSON bounds.
-// Pads by entity radius so we don't half-exit.
+// Clamp to map bounds, preferring collider JSON bounds, padded by entity radius.
 function _clampToMap(ent, x, y) {
   const radius = Collide.radiusOf(ent) || 0
 
-  // Prefer exported collider bounds
   const bounds = Colliders.getMapBounds(ent?.mapId)
   if (bounds && Number.isFinite(bounds.x)) {
     const minX = bounds.x + radius
@@ -105,7 +98,7 @@ function _clampToMap(ent, x, y) {
     }
   }
 
-  // Fallback to mapRegistry (old style)
+  // Fallback to mapRegistry info if bounds file is absent
   const info = getMapInfo(ent?.mapId)
   if (!info) return { x, y }
   const minX = 0 + radius, minY = 0 + radius
@@ -118,7 +111,6 @@ function _clampToMap(ent, x, y) {
 }
 
 // Build per-player relative velocity index (pixels moved last tick).
-// NOTE: we purposely use last-tick displacement so relative motion is stable.
 function _buildVelocityIndex(playerId) {
   const vel = new Map()
   const last = _sub(LAST_POS, playerId)
@@ -134,27 +126,27 @@ function _buildVelocityIndex(playerId) {
 }
 
 // Build a frozen position snapshot for this tick so sweeps don't read live-mutated positions.
+// IMPORTANT: include the metadata that collision.js needs:
+//   type, mobType, mapId, instanceId, entityId
 function _buildPosIndex(playerId) {
   const pos = new Map()
   Store.each(playerId, (eid, ent) => {
     pos.set(String(eid), {
-      x: Number(ent?.pos?.x) || 0,
-      y: Number(ent?.pos?.y) || 0,
-      mapId: ent?.mapId,
-      instanceId: ent?.instanceId,
-      type: ent?.type,
-      mobType: ent?.mobType || null,
-      entityId: ent?.entityId || eid,
-      state: ent?.state,
+      x          : Number(ent?.pos?.x) || 0,
+      y          : Number(ent?.pos?.y) || 0,
+      r          : Collide.radiusOf(ent) || 0, // not used directly by collision.js, but handy
+      type       : ent?.type,
+      mobType    : ent?.mobType,
+      mapId      : ent?.mapId,
+      instanceId : ent?.instanceId,
+      entityId   : ent?.entityId ?? String(eid),
     })
   })
   return pos
 }
 
-// After we finish the tick, update LAST_POS with current store state
 function _snapshotPositions(playerId) {
   const last = _sub(LAST_POS, playerId)
-  last.clear()
   Store.each(playerId, (eid, ent) => {
     const x = Number(ent?.pos?.x) || 0
     const y = Number(ent?.pos?.y) || 0
@@ -162,7 +154,65 @@ function _snapshotPositions(playerId) {
   })
 }
 
-// ---------- main step ----------
+// ─────────────────────────────────────────────────────────────────────────────
+// Movement API
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Start/refresh a movement intent for an entity.
+function onMoveStart(playerId, entityId, dir) {
+  if (!playerId || !entityId) return
+
+  const ent = Store.get(playerId, entityId)
+  if (!ent) return
+
+  // If attacking, queue the move to resume after attack
+  if (ent.state === "attack") {
+    try {
+      const AttackLoop = require("./attackLoop")
+      if (ent.type === "player") {
+        AttackLoop.queueMove(playerId, entityId, _normDir(dir))
+      }
+    } catch (_e) {}
+    return
+  }
+
+  _sub(INTENTS, playerId).set(String(entityId), _normDir(dir))
+
+  if (ent.state !== "walk") {
+    FSM.apply(playerId, entityId, "moveIntentStart")
+  }
+}
+
+// Stop movement for an entity.
+function onMoveStop(playerId, entityId) {
+  if (!playerId || !entityId) return
+
+  const ent = Store.get(playerId, entityId)
+  if (!ent) return
+
+  const sub = _sub(INTENTS, playerId)
+  sub.delete(String(entityId))
+
+  if (ent.state === "walk") {
+    FSM.apply(playerId, entityId, "moveIntentStop")
+  }
+}
+
+// For server AI (e.g., mobs) to steer continuously without client input.
+function setDir(playerId, entityId, dir) {
+  if (!playerId || !entityId) return
+  const sub = _sub(INTENTS, playerId)
+  sub.set(String(entityId), _normDir(dir))
+  const ent = Store.get(playerId, entityId)
+  if (ent && ent.state !== "walk") {
+    FSM.apply(playerId, entityId, "moveIntentStart")
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main step
+// ─────────────────────────────────────────────────────────────────────────────
+
 function step(dtSec) {
   // Build per-player indexes BEFORE applying this frame's moves.
   const velIndexes = new Map()
@@ -177,15 +227,18 @@ function step(dtSec) {
     const velIndex = velIndexes.get(playerId) || new Map()
     const posIndex = posIndexes.get(playerId) || new Map()
 
-    for (const entityId of ids) {
+    for (let i = 0; i < ids.length; i++) {
+      const entityId = ids[i]
       const ent = Store.get(playerId, entityId)
       if (!ent) { sub.delete(entityId); continue }
-      if (ent.state === "dead") { sub.delete(entityId); continue }
+
+      // Only move entities in 'walk' (attack blocks movement)
+      if (ent.state !== "walk") continue
 
       const dir = sub.get(entityId) || { x: 0, y: 0 }
-      if (dir.x === 0 && dir.y === 0) continue
+      if ((dir.x === 0 && dir.y === 0)) continue
 
-      // Integrate
+      // Integrate desired motion
       const { prev, wish } = _integrate(ent, dir, dtSec)
 
       // Pre-clamp to bounds to avoid giant vectors
@@ -194,7 +247,7 @@ function step(dtSec) {
       // Resolve with frozen snapshot (dynamic sweep uses posIndex + velIndex)
       const resolved = Collide.resolveWithSubsteps(
         playerId,
-        posIndex.get(String(entityId)) || ent, // movingEnt meta for radius/mapId/instanceId
+        posIndex.get(String(entityId)) || ent, // movingEnt meta for radius/mapId/instanceId/type
         prev,
         clampedWish,
         velIndex,
@@ -211,7 +264,10 @@ function step(dtSec) {
   }
 }
 
-// start fixed tick
+// ─────────────────────────────────────────────────────────────────────────────
+// Boot loop
+// ─────────────────────────────────────────────────────────────────────────────
+let _last = Date.now()
 setInterval(() => {
   const now = Date.now()
   const dtMs = Math.max(1, now - _last)
@@ -219,6 +275,7 @@ setInterval(() => {
   step(dtMs / 1000)
 }, TICK_MS)
 
+// ─────────────────────────────────────────────────────────────────────────────
 module.exports = {
   onMoveStart,
   onMoveStop,

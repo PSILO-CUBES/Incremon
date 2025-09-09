@@ -17,7 +17,6 @@ module.exports = ( ws, data = {} ) => {
   if (!res.ok) return;
 
   Movement.onMoveStop(ws.playerId, entityId);
-  console.log('stopped moving');
 
   const nowEnt = Store.get(ws.playerId, entityId);
   ws.send(JSON.stringify({

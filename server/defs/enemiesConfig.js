@@ -20,6 +20,10 @@ module.exports = {
     // Collision + spawn spacing
     collisionRadius: 20,      // <— add this to tune blocking feel per mob
     spawnSeparation: 40,      // pixels
+
+    attackRangePx: 72,
+    attackTimer: 900,
+    attackCooldownMs: 900,
   },
 
   // Add more enemies here...

@@ -13,17 +13,19 @@ const Spawns = require("./systems/spawnLoop");
 require("./systems/movementLoop");
 require("./systems/aiFollowLoop");
 
+const hitboxManager = require("./systems/hitboxManager");
+
 const verifyRoute = require("./http/verifyRoute");
 
-const PORT = Number(process.env.PORT || 8080);
-const WS_MAX_PAYLOAD = Number(process.env.WS_MAX_PAYLOAD || 64 * 1024); // 64KB default
+const PORT = 8080;
+const WS_MAX_PAYLOAD = 64 * 1024; // 64KB default
 
 async function start() {
   await dbModule.connect();
 
   const app = express();
   app.get("/verify", verifyRoute);
-  const server = app.listen(Number(process.env.HTTP_PORT || 8080), () => {
+  const server = app.listen(PORT, () => {
     console.log(`-* HTTP server listening on ${server.address().port}`);
   });
 
@@ -67,6 +69,10 @@ async function start() {
   // Start per-player spawn loop after WS is ready
   if (typeof Spawns.start === "function") {
     Spawns.start();
+  }
+
+  if (typeof hitboxManager.start === "function") {
+    hitboxManager.start();
   }
 
   console.log(`-* WebSocket server running (port ${PORT}) maxPayload=${WS_MAX_PAYLOAD} deflate=off`);

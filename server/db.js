@@ -8,9 +8,9 @@ mongoose.set("sanitizeFilter", true);
 mongoose.set("sanitizeProjection", true);
 
 const mongoUrl = process.env.MONGO_URL;                // e.g. mongodb://localhost:27017
-const dbName   = process.env.DB_NAME || "mygame";
+const dbName   = "mygame";
 
-const isProd   = process.env.NODE_ENV === "production";
+const isProd   = "production";
 
 // Keep indexes auto-built in dev; turn off in prod (build once during deploy)
 const autoIndex = !isProd;

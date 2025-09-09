@@ -1,9 +1,9 @@
 // server/systems/attackLoop.js
 //
 // Server-authoritative attack windows with optional queued movement.
-// When an attack starts, we start a short timer. While in 'attack',
-// any incoming moveIntentStart is queued (not applied). When the
-// timer completes, we finish the attack and, if a queued move exists
+// When an attack starts, we store the attack position and start a short timer.
+// While in 'attack', any incoming moveIntentStart is queued (not applied).
+// When the timer completes, we finish the attack and, if a queued move exists
 // (or a resumeDir was captured at attack start), we transition to 'walk'.
 //
 
@@ -12,7 +12,7 @@ const Store      = require("../world/entityStore");
 const Movement   = require("./movementLoop");
 const wsRegistry = require("../wsRegistry");
 
-const DEFAULT_ATTACK_MS = Number(process.env.ATTACK_MS || 180);
+const DEFAULT_ATTACK_MS = 1000; /* if durationMs from aiFollowLoop isint provided */
 
 // timers: Map<playerId, Map<entityId, Timeout>>
 const _timers = new Map();
@@ -20,6 +20,8 @@ const _timers = new Map();
 const _queued = new Map();
 // captured dir at attack start (used if no queued dir arrives): Map<playerId, Map<entityId, {x,y}>>
 const _resume = new Map();
+// attack positions: Map<playerId, Map<entityId, {x,y}>>
+const _positions = new Map();
 
 function _sub(map, playerId) {
   let m = map.get(playerId);
@@ -54,7 +56,7 @@ function _takeQueued(playerId, entityId) {
   return d;
 }
 
-function start(playerId, entityId, durationMs = DEFAULT_ATTACK_MS, resumeDir = null) {
+function start(playerId, entityId, attackPos, durationMs = DEFAULT_ATTACK_MS, resumeDir = null) {
   if (!playerId || !entityId) return;
   const ent = Store.get(playerId, entityId);
   if (!ent || ent.state !== "attack") return;
@@ -64,14 +66,18 @@ function start(playerId, entityId, durationMs = DEFAULT_ATTACK_MS, resumeDir = n
   const existing = tmap.get(k);
   if (existing) clearTimeout(existing);
 
-  if (resumeDir) {
+  // store attack position
+  _sub(_positions, playerId).set(k, { x: attackPos.x, y: attackPos.y });
+
+  // Only players capture a resumeDir; enemies shouldn't auto-resume
+  if (ent.type === "player" && resumeDir) {
     _sub(_resume, playerId).set(k, _norm(resumeDir));
   } else {
     const r = _sub(_resume, playerId);
     r.delete(k);
   }
 
-  const ms = Math.max(1, Number(durationMs) || DEFAULT_ATTACK_MS);
+  const ms = Math.max(1, durationMs);
   const timeout = setTimeout(() => finish(playerId, entityId), ms);
   tmap.set(k, timeout);
 }
@@ -88,6 +94,8 @@ function cancel(playerId, entityId) {
   if (q) q.delete(k);
   const r = _resume.get(playerId);
   if (r) r.delete(k);
+  const p = _positions.get(playerId);
+  if (p) p.delete(k);
 }
 
 function finish(playerId, entityId) {
@@ -102,30 +110,53 @@ function finish(playerId, entityId) {
   if (ent.state === "attack") {
     const res = FSM.apply(playerId, entityId, "attackFinished");
     if (res?.ok) {
+      const nowEnt = Store.get(playerId, entityId);
       wsRegistry.sendTo(playerId, {
         event: "entityStateUpdate",
-        payload: { entityId, state: "idle" }
+        payload: { 
+          entityId, 
+          state: nowEnt.state 
+        }
       });
     }
   }
 
-  let dir = _takeQueued(playerId, entityId);
-  if (!dir) {
-    const r = _resume.get(playerId);
-    dir = r ? r.get(k) : null;
-    if (r) r.delete(k);
+  if (ent.type === "player") {
+    let dir = _takeQueued(playerId, entityId);
+    if (!dir) {
+      const r = _resume.get(playerId);
+      dir = r ? r.get(k) : null;
+      if (r) r.delete(k);
+    }
+
+    if (dir && (Math.abs(dir.x) + Math.abs(dir.y) > 0)) {
+      const allow = FSM.apply(playerId, entityId, "moveIntentStart");
+      if (allow?.ok) {
+        Movement.onMoveStart(playerId, entityId, dir);
+        const nowEnt = Store.get(playerId, entityId);
+        wsRegistry.sendTo(playerId, {
+          event: "entityStateUpdate",
+          payload: { 
+            entityId, 
+            state: nowEnt.state, 
+            dir 
+          }
+        });
+      }
+    }
+  } else {
+    const q = _queued.get(playerId); if (q) q.delete(k);
+    const r = _resume.get(playerId); if (r) r.delete(k);
   }
 
-  if (dir && (Math.abs(dir.x) + Math.abs(dir.y) > 0)) {
-    const allow = FSM.apply(playerId, entityId, "moveIntentStart");
-    if (allow?.ok) {
-      Movement.onMoveStart(playerId, entityId, dir);
-      wsRegistry.sendTo(playerId, {
-        event: "entityStateUpdate",
-        payload: { entityId, state: "walk", dir }
-      });
-    }
-  }
+  const p = _positions.get(playerId);
+  if (p) p.delete(k);
+}
+
+function getAttackPos(playerId, entityId) {
+  const posMap = _positions.get(playerId);
+  if (!posMap) return null;
+  return posMap.get(String(entityId)) || null;
 }
 
 module.exports = {
@@ -134,4 +165,5 @@ module.exports = {
   cancel,
   queueMove,
   clearQueued,
+  getAttackPos,
 };
