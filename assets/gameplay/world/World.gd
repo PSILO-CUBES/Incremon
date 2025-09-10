@@ -8,7 +8,6 @@ const MAPS := {
 }
 
 const PLAYER_SCENE := preload("res://assets/gameplay/entities/player/Player.tscn")
-const TokenStorage = preload("res://assets/network/scripts/TokenStorage.gd")
 # WorldPosApplier has class_name, but preload is fine too if you prefer:
 const WorldPosApplier = preload("res://assets/gameplay/world/WorldPosApplier.gd")
 

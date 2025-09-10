@@ -1,8 +1,6 @@
 extends Node
 class_name State
 
-signal Transitioned
-
 var entity
 
 func _enter():

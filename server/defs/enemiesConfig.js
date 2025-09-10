@@ -1,31 +1,41 @@
-// server/defs/enemiesConfig.js
-// Canonical, server-authoritative enemy definitions.
-// The client must NOT define these. The server sends legit stats + scenePath.
-
 module.exports = {
   gablino: {
-    name : 'gablino',
-    
-    // Core stats (authoritative)
+    name: 'gablino',
+
+    // Core stats
     hp: 5,
     spd: 50,
     atk: 1,
 
-    // Client scene path (the client already has this resource locally)
+    // Client scene path (client holds this asset locally)
     scenePath: "res://assets/gameplay/entities/monsters/enemies/gablino/Gablino.tscn",
 
-    // Extra info (tags, drops, etc.)
+    // Tags, drops, etc.
     tags: ["bones", "basic"],
 
     // Collision + spawn spacing
-    collisionRadius: 20,      // <— add this to tune blocking feel per mob
-    spawnSeparation: 40,      // pixels
+    collisionRadius: 20,
+    spawnSeparation: 40,
 
-    attackRangePx: 84,
-    attackTimer: 900,
-    attackCooldownMs: 900,
+    // AI engagement + pacing
+    attackRangePx: 84,          // when within this, AI swaps to 'attack'
+    attackTimer: 900,           // legacy pacing field (ms)
+    attackCooldownMs: 900,      // post-attack cooldown (ms)
+
+    // Per-enemy attack hitbox. Default here is a square front box.
+    attack: {
+      // Option A: inline hitbox definition (rect)
+      hitbox: {
+        type: "rect",
+        widthPx: 48,
+        heightPx: 32,
+        offsetPx: 16,
+        durationMs: 300,
+        tickMs: 16
+      }
+
+      // Option B: use a shared def from hitboxDefs.js instead:
+      // hitbox: { defKey: "enemy_front_box_basic" }
+    }
   },
-
-  // Add more enemies here...
-  // gobbo: { hp: 10, spd: 4, atk: 2, scenePath: "res://...", tags: [] },
-};
+}

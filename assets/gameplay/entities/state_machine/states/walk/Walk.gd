@@ -3,6 +3,7 @@ class_name WalkState
 
 func _enter():
 	super._enter()
+	
 	if entity.has_anim("walk"):
 		entity.animation_sprite.play("walk")
 

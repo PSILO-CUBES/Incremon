@@ -6,7 +6,6 @@ signal message_received(event: String, payload: Dictionary)
 signal connection_open
 signal connection_closed(code: int, reason: String)
 
-const TokenStorage   = preload("res://assets/network/scripts/TokenStorage.gd")
 const SlTokenRefresh = preload("res://assets/network/scripts/SLTokenRefresh.gd")
 
 var ws: WebSocketPeer = WebSocketPeer.new()

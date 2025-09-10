@@ -1,7 +1,5 @@
 extends Node
 
-const TokenStorage = preload("res://assets/network/scripts/TokenStorage.gd")
-
 var ws: WebSocketPeer
 var sl_refresh_timer: Timer
 

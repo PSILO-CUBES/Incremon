@@ -13,11 +13,6 @@ func _ready() -> void:
 	for child in get_children():
 		# Collect children as states; names become keys ("idle", "walk", etc.)
 		states[child.name.to_lower()] = child
-		# Keep wiring if you want, but we'll ignore local transitions in server mode.
-		if child.has_signal("Transitioned"):
-			if child.Transitioned.is_connected(_on_child_transition):
-				child.Transitioned.disconnect(_on_child_transition)
-			child.Transitioned.connect(_on_child_transition)
 
 	# Optional: pick a default so visuals aren’t blank
 	if states.has("idle"):

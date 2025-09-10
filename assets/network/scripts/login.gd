@@ -4,7 +4,6 @@ extends Node
 @onready var password_input: LineEdit = %SignInPasswordInput
 
 const Game = preload("res://assets/gameplay/game.tscn")
-const TokenStorage = preload("res://assets/network/scripts/TokenStorage.gd")
 
 func _ready():
 	WebSocketClient.register_handler("loginSuccess", Callable(self, "_on_login_success"))
@@ -21,7 +20,7 @@ func sign_in() -> void:
 		return
 	WebSocketClient.send_action("login", {"username": username, "password": password})
 
-func _on_login_success(payload: Dictionary) -> void:
+func _on_login_success(_payload: Dictionary) -> void:
 	_change_to_game()
 
 func _on_login_failed(payload: Dictionary) -> void:

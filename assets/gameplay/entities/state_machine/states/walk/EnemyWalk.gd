@@ -1,7 +1,7 @@
 extends WalkState
 class_name EnemyWalk
 
-var _base_speed: float = 60.0
+var _base_speed: float
 var _prev_pos: Vector2 = Vector2.ZERO
 var _has_prev: bool = false
 
@@ -24,7 +24,6 @@ func _physics_update(_delta: float) -> void:
 	# super handles flip if velocity changed; we handle facing from snapshots in apply_server_snapshot()
 
 func _refresh_speed() -> void:
-	_base_speed = 60.0
 	if entity and typeof(entity.data) == TYPE_DICTIONARY:
 		var stats := entity.data.get("stats", {}) as Dictionary
 		if typeof(stats) == TYPE_DICTIONARY and stats.has("spd"):

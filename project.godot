@@ -18,6 +18,7 @@ config/features=PackedStringArray("4.4", "Forward Plus")
 
 WebSocketClient="*res://assets/network/scripts/WebSocketClient.gd"
 SlTokenRefresh="*res://assets/network/scripts/SLTokenRefresh.gd"
+HitboxVisualiser="*res://assets/gameplay/entities/combat/HitboxVisualiser.gd"
 
 [display]
 

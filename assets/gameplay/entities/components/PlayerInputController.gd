@@ -36,4 +36,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		and event.button_index == MOUSE_BUTTON_LEFT \
 		and event.pressed \
 		and not event.is_echo():
-		emitter.attack_start()
+			var viewport := get_viewport()
+			var camera := viewport.get_camera_2d()
+			
+			if camera:
+				var click_pos: Vector2 = camera.get_global_mouse_position()
+				emitter.attack_start(click_pos)

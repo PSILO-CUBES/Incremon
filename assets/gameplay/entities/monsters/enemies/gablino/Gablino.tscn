@@ -1,10 +1,23 @@
-[gd_scene load_steps=11 format=3 uid="uid://baetk2e5tas15"]
+[gd_scene load_steps=15 format=3 uid="uid://baetk2e5tas15"]
 
 [ext_resource type="PackedScene" uid="uid://cn724itkciu67" path="res://assets/gameplay/entities/monsters/enemies/Enemies.tscn" id="1_xmsub"]
 [ext_resource type="Texture2D" uid="uid://cwegjb1ut6u1x" path="res://assets/gameplay/entities/monsters/enemies/gablino/Gablino-Sheet.png" id="2_f5w21"]
 [ext_resource type="Script" uid="uid://cmbpt6pw10qix" path="res://assets/gameplay/entities/components/AIController.gd" id="3_1sdu4"]
 [ext_resource type="Script" uid="uid://cqkssr3hma0u2" path="res://assets/gameplay/entities/state_machine/states/walk/EnemyWalk.gd" id="4_pq6lj"]
 [ext_resource type="Script" uid="uid://bpjw0kwlwo815" path="res://assets/gameplay/entities/state_machine/states/idle/EnemyIdle.gd" id="5_5p4jw"]
+[ext_resource type="Script" uid="uid://dmcfne2jbqcik" path="res://assets/gameplay/entities/state_machine/states/attack/EnemyAttack.gd" id="5_fifn7"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fifn7"]
+atlas = ExtResource("2_f5w21")
+region = Rect2(0, 64, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pq6lj"]
+atlas = ExtResource("2_f5w21")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wmp4y"]
+atlas = ExtResource("2_f5w21")
+region = Rect2(0, 0, 64, 64)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_f5w21"]
 atlas = ExtResource("2_f5w21")
@@ -20,6 +33,20 @@ region = Rect2(64, 0, 64, 64)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_wmp4y"]
 animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fifn7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pq6lj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wmp4y")
+}],
+"loop": false,
+"name": &"attack",
+"speed": 3.0
+}, {
 "frames": [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_f5w21")
@@ -49,7 +76,9 @@ position = Vector2(0, -28)
 
 [node name="AnimatedSprite2D" parent="." index="0"]
 sprite_frames = SubResource("SpriteFrames_wmp4y")
-animation = &"idle"
+animation = &"attack"
+frame = 2
+frame_progress = 1.0
 
 [node name="EntityShape" parent="." index="2"]
 shape = SubResource("CapsuleShape2D_f5w21")
@@ -68,6 +97,10 @@ metadata/_custom_type_script = "uid://cqkssr3hma0u2"
 [node name="Idle" type="Node" parent="StateMachine" index="1"]
 script = ExtResource("5_5p4jw")
 metadata/_custom_type_script = "uid://bpjw0kwlwo815"
+
+[node name="Attack" type="Node" parent="StateMachine" index="2"]
+script = ExtResource("5_fifn7")
+metadata/_custom_type_script = "uid://dmcfne2jbqcik"
 
 [node name="Controller" parent="." index="7"]
 script = ExtResource("3_1sdu4")

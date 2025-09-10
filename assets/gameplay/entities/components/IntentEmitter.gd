@@ -31,7 +31,7 @@ func move_start(dir: Vector2) -> void:
 func move_stop() -> void:
 	send_intent("moveStop")
 
-func attack_start() -> void:
+func attack_start(pos) -> void:
 	# Do NOT send moveStop here — the server freezes movement during attack
 	# and will auto-resume if the player was moving.
-	send_intent("attack")
+	send_intent("attack", {"pos": {"x": pos.x, "y": pos.y}})
