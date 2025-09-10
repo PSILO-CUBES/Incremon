@@ -31,6 +31,10 @@ func has_anim(anim: String) -> bool:
 		return false
 	return frames.has_animation(anim)
 
-func _on_entity_hit(p):
-	print('ouch')
-	pass
+func _on_entity_hit(p: Dictionary) -> void:
+	if not p.has("targetId"):
+		return
+	if p.targetId != entity_id:
+		return
+	print("ouch")
+	# apply local effects here (damage flash, sfx, etc.)

@@ -38,6 +38,21 @@ function normalizeAngle(a) {
   return a
 }
 
+function isPlayerRow(row) {
+  if (!row) return false
+  if (row.type === 'player') return true
+  if (row.isPlayer === true) return true
+  return false
+}
+
+function isMobRow(row) {
+  if (!row) return false
+  if (row.type === 'mob') return true
+  if (row.isNpc === true) return true
+  if (row.isEnemy === true) return true
+  return false
+}
+
 function getOwnerPlayerEntity(playerId) {
   let out = null
   if (typeof entityStore.each === 'function') {
@@ -48,9 +63,41 @@ function getOwnerPlayerEntity(playerId) {
   return out
 }
 
+function getRow(playerId, entityId) {
+  return entityStore.get(playerId, entityId)
+}
+
+function listTargetsFor(hb) {
+  const out = []
+  const attacker = getRow(hb.ownerPlayerId, hb.ownerEntityId)
+  if (!attacker) return out
+
+  const ownerIsPlayer = isPlayerRow(attacker)
+  const ownerIsMob = isMobRow(attacker)
+
+  if (ownerIsMob) {
+    const playerEnt = getOwnerPlayerEntity(hb.ownerPlayerId)
+    if (playerEnt) out.push({ id: String(playerEnt.entityId || 'player'), row: playerEnt })
+    return out
+  }
+
+  if (ownerIsPlayer) {
+    if (typeof entityStore.each === 'function') {
+      entityStore.each(hb.ownerPlayerId, (id, row) => {
+        if (!row) return
+        if (String(id) === String(hb.ownerEntityId)) return
+        if (isMobRow(row)) out.push({ id: String(id), row: row })
+      })
+    }
+  }
+
+  return out
+}
+
 function applyHit(ownerPlayerId, attackerId, targetId, defKey) {
   const ws = wsRegistry.get(ownerPlayerId)
   if (!wsRegistry.isOpen(ws)) return
+  if (attackerId == targetId) return
   wsRegistry.sendTo(ownerPlayerId, {
     event: 'entityHit',
     attackerId: attackerId,
@@ -58,6 +105,7 @@ function applyHit(ownerPlayerId, attackerId, targetId, defKey) {
     hitboxKey: defKey,
     source: 'server'
   })
+  console.log('hit')
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -184,10 +232,10 @@ function spawnSwing(ownerPlayerId, ownerEntity, defKey, baseAngleRad) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Steppers
+// Steppers (FIXED: select foes, exclude self, loop candidates)
 // ─────────────────────────────────────────────────────────────────────────────
 function stepRect(hb) {
-  const attacker = entityStore.get(hb.ownerPlayerId, hb.ownerEntityId)
+  const attacker = getRow(hb.ownerPlayerId, hb.ownerEntityId)
   if (!attacker) return 'remove'
 
   const angle = hb.baseAngle
@@ -204,45 +252,57 @@ function stepRect(hb) {
     hh: hb.heightPx * 0.5
   }
 
-  const playerEnt = getOwnerPlayerEntity(hb.ownerPlayerId)
-  if (!playerEnt) return
+  const candidates = listTargetsFor(hb)
+  if (candidates.length === 0) return
 
-  const r = Collision.radiusOf(playerEnt)
-  const hit = circleIntersectsOrientedRect(playerEnt.pos.x, playerEnt.pos.y, r, rect)
-  if (!hit) return
+  for (let i = 0; i < candidates.length; i++) {
+    const c = candidates[i]
+    const row = c.row
+    if (!row || !row.pos) continue
 
-  const key = String(playerEnt.entityId || 'player')
-  if (hb.alreadyHit.has(key)) return
+    const key = String(c.id)
+    if (hb.alreadyHit.has(key)) continue
 
-  hb.alreadyHit.add(key)
-  applyHit(hb.ownerPlayerId, hb.ownerEntityId, key, hb.defKey)
+    const r = Collision.radiusOf(row)
+    const hit = circleIntersectsOrientedRect(row.pos.x, row.pos.y, r, rect)
+    if (!hit) continue
+
+    hb.alreadyHit.add(key)
+    applyHit(hb.ownerPlayerId, hb.ownerEntityId, key, hb.defKey)
+  }
 }
 
 function stepCone(hb) {
-  const attacker = entityStore.get(hb.ownerPlayerId, hb.ownerEntityId)
+  const attacker = getRow(hb.ownerPlayerId, hb.ownerEntityId)
   if (!attacker) return 'remove'
-
-  const playerEnt = getOwnerPlayerEntity(hb.ownerPlayerId)
-  if (!playerEnt) return
 
   const center = attacker.pos
   const radius = Number(hb.radiusPx) || 96
   const halfArcDeg = Number(hb.arcDegrees) || 90
   const base = hb.baseAngle
 
-  const dx = playerEnt.pos.x - center.x
-  const dy = playerEnt.pos.y - center.y
-  const dist = Math.hypot(dx, dy)
-  const maxR = radius + Collision.radiusOf(playerEnt)
-  if (dist > maxR) return
+  const candidates = listTargetsFor(hb)
+  if (candidates.length === 0) return
 
-  const angleTo = Math.atan2(dy, dx)
-  let delta = normalizeAngle(angleTo - base)
-  if (delta < 0) delta = -delta
+  for (let i = 0; i < candidates.length; i++) {
+    const c = candidates[i]
+    const row = c.row
+    if (!row || !row.pos) continue
 
-  if (delta * 180 / Math.PI <= halfArcDeg * 0.5) {
-    const key = String(playerEnt.entityId || 'player')
-    if (!hb.alreadyHit.has(key)) {
+    const key = String(c.id)
+    if (hb.alreadyHit.has(key)) continue
+
+    const dx = row.pos.x - center.x
+    const dy = row.pos.y - center.y
+    const dist = Math.hypot(dx, dy)
+    const maxR = radius + Collision.radiusOf(row)
+    if (dist > maxR) continue
+
+    const angleTo = Math.atan2(dy, dx)
+    let delta = normalizeAngle(angleTo - base)
+    if (delta < 0) delta = -delta
+
+    if (delta * 180 / Math.PI <= halfArcDeg * 0.5) {
       hb.alreadyHit.add(key)
       applyHit(hb.ownerPlayerId, hb.ownerEntityId, key, hb.defKey)
     }
