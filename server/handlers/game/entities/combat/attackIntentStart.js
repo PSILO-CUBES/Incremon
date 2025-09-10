@@ -1,55 +1,123 @@
 // server/handlers/game/entities/combat/attackIntentStart.js
-// Uses your existing FSM/AttackLoop but also emits a data-only "hitboxSpawned" to the owner client.
+// Aim is ALWAYS relative to mouse click. Server computes baseAngle from player.pos -> click.
+// Midpoint of swing equals that angle. Sends authoritative viz data to the owner.
+// Conventions: camelCase, no semicolons.
 
+const FSM         = require('../../../../systems/fsm')
+const AttackLoop  = require('../../../../systems/attackLoop')
+const Movement    = require('../../../../systems/movementLoop')
 const entityStore = require('../../../../world/entityStore')
-const { apply } = require('../../../../systems/fsm')                    // your FSM entry point
-const AttackLoop = require('../../../../systems/attackLoop')            // your existing timer/resume flow
-const Movement   = require('../../../../systems/movementLoop')
-const Hitboxes   = require('../../../../systems/hitboxManager')
-const HB_DEFS    = require('../../../../defs/hitboxDefs')
-const wsRegistry = require('../../../../wsRegistry')
+const Hitboxes    = require('../../../../systems/hitboxManager')
+const HB_DEFS     = require('../../../../defs/hitboxDefs')
+const wsRegistry  = require('../../../../wsRegistry')
 
-module.exports = function attackIntentStart(ws, payload) {
-  if (!ws.playerId || !ws.hasSpawned) return
-  const entityId = ws.playerEntityId
-  const player = entityStore.get(ws.playerId, entityId)
-  if (!player) return
+function sanitizePos(p) {
+  if (!p) return { x: 0, y: 0 }
+  const x = Number(p.x)
+  const y = Number(p.y)
+  if (Number.isNaN(x) || Number.isNaN(y)) return { x: 0, y: 0 }
+  return { x, y }
+}
 
-  const aim = payload?.pos
-  if (!aim || typeof aim.x !== 'number' || typeof aim.y !== 'number') return
+function angleBetween(fromPos, toPos) {
+  const dx = Number(toPos.x) - Number(fromPos.x)
+  const dy = Number(toPos.y) - Number(fromPos.y)
+  return Math.atan2(dy, dx)
+}
 
+module.exports = (ws, data = {}) => {
+  // Basic guards
+  if (!ws || !ws.playerId || !ws.hasSpawned) return
+
+  const entityId = data.entityId ? String(data.entityId) : String(ws.playerEntityId)
+  if (!entityId) return
+
+  // Resolve entity
+  const ent = entityStore.get(ws.playerId, entityId)
+  if (!ent) return
+  if (ent.type !== 'player') {
+    // For now only players use this handler
+    return
+  }
+
+  // If already attacking, ignore new attack intents to avoid re-arming the window
+  if (ent.state === 'attack') return
+
+  // Select hitbox shape
+  let shapeKey = data.shapeKey
+  if (!shapeKey || !HB_DEFS[shapeKey]) {
+    shapeKey = 'player_basic_swing'
+  }
+  const def = HB_DEFS[shapeKey]
+  if (!def) return
+
+  // Click position and aim angle
+  const clickPos = sanitizePos(data.pos)
+  const baseAngle = angleBetween(ent.pos, clickPos)
+
+  // Capture current move dir (if any) so we can auto-resume after the attack window
   let resumeDir = null
   try {
-    const intents = Movement._INTENTS && Movement._INTENTS.get(ws.playerId)
-    if (intents && intents.has(String(entityId))) resumeDir = intents.get(String(entityId))
-  } catch {}
-
-  const fsmRes = apply(ws.playerId, entityId, 'attackIntentStart')
-  if (!fsmRes?.ok) return
-
-  const shapeKey = 'player_basic_swing'
-  const def = HB_DEFS[shapeKey]
-  const durationMs = Math.max(1, Number(def?.durationMs ?? 400))
-
-  AttackLoop.start(ws.playerId, entityId, aim, durationMs, resumeDir)
-
-  const hb = Hitboxes.spawnSwing({ ownerEntity: player, aimAt: aim, shapeKey })
-  
-  if (hb) {
-    wsRegistry.sendTo(ws.playerId, {
-      event: 'hitboxSpawned',
-      payload: {
-        entityId,
-        state: player.state,
-        shapeKey,
-        startMs: hb.startMs,
-        durationMs,
-        radiusPx: hb.radiusPx,
-        arcDegrees: def.arcDegrees,
-        sweepDegrees: def.sweepDegrees,
-        clockwise: hb.clockwise,
-        baseAngle: hb.baseAngle
+    const intentsByEntity = Movement._INTENTS && Movement._INTENTS.get(String(ws.playerId))
+    if (intentsByEntity) {
+      const d = intentsByEntity.get(String(entityId))
+      if (d && typeof d.x === 'number' && typeof d.y === 'number') {
+        resumeDir = { x: d.x, y: d.y }
       }
-    })
+    }
+  } catch (_e) {}
+
+  // Freeze movement while attacking
+  Movement.onMoveStop(ws.playerId, entityId)
+
+  // ── EARLY STATE CHANGE (restored) ───────────────────────────────────────────
+  const res = FSM.apply(ws.playerId, entityId, 'attackIntentStart')
+  if (!res || !res.ok) return
+
+  // Notify client of the state change immediately
+  const nowEnt = entityStore.get(ws.playerId, entityId)
+  if (nowEnt) {
+    ws.send(JSON.stringify({
+      event: 'entityStateUpdate',
+      payload: {
+        entityId: entityId,
+        state: nowEnt.state
+      }
+    }))
   }
+
+  // Start the authoritative attack window (drives attackFinished -> idle/walk)
+  const attackMs = Number(def.durationMs)
+  AttackLoop.start(
+    ws.playerId,
+    entityId,
+    { x: ent.pos.x, y: ent.pos.y },  // attack origin = current player pos
+    Number.isFinite(attackMs) ? attackMs : undefined,
+    resumeDir
+  )
+
+  // Ensure hitbox system is ticking
+  try { Hitboxes.start() } catch (_e) {}
+
+  // Spawn the swing hitbox with mid-swing centered on baseAngle
+  const hb = Hitboxes.spawnSwing(ws.playerId, ent, shapeKey, baseAngle)
+  if (!hb) return
+
+  // Visual sync for the owner (client will render tweened cone)
+  const now = Date.now()
+  const elapsedAtSendMs = now - hb.startMs
+  const durationMs = def.durationMs
+
+  wsRegistry.sendTo(ws.playerId, {
+    event: 'hitboxSpawned',
+    entityId: entityId,
+    shapeKey: shapeKey,
+    startMs: hb.startMs,
+    elapsedAtSendMs: elapsedAtSendMs,
+    durationMs: durationMs,
+    radiusPx: def.rangePx,
+    arcDegrees: def.arcDegrees,
+    sweepDegrees: def.sweepDegrees,
+    baseAngle: hb.baseAngle
+  })
 }

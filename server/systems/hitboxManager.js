@@ -1,170 +1,313 @@
 // server/systems/hitboxManager.js
-// Server-authoritative, time-stepped hitbox updates for cone swings.
-// Chooses clockwise vs counterclockwise per swing, and exposes spawn data.
+//
+// Server-authoritative hitboxes for both CONE swings and RECT boxes.
+// - Time-stepped at fixed 16 ms
+// - All detection happens on the server
+// - Emission is per-owner player (per-player instanced world)
+//
+// Exposes:
+//   start()
+//   spawnSwing(ownerPlayerId, ownerEntity, defKey, baseAngleRad)
+//   spawnBox(ownerPlayerId, ownerEntity, defKey, baseAngleRad)
+//
+// Conventions: camelCase, no semicolons.
 
-const HITBOX_DEFS = require('../defs/hitboxDefs')
-const entityStore = require('../world/entityStore')
+const HITBOX_DEFS  = require('../defs/hitboxDefs')
+const entityStore  = require('../world/entityStore')
+const wsRegistry   = require('../wsRegistry')
+const Collide      = require('./collision')
+const Bus          = require('../world/bus')
 
-const TICK_MS = 16
-const active = new Set()
+const active = new Set() // of hitbox objects
 
-const deg2rad = d => d * Math.PI / 180
-const now = () => Date.now()
+function now() { return Date.now() }
+function deg2rad(d) { return d * Math.PI / 180 }
 
-function normalizeAngle(a) {
-  while (a > Math.PI) a -= Math.PI * 2
-  while (a <= -Math.PI) a += Math.PI * 2
-  return a
+function clamp(v, lo, hi) {
+  if (v < lo) return lo
+  if (v > hi) return hi
+  return v
 }
 
-function angleBetween(from, to) {
-  return Math.atan2(to.y - from.y, to.x - from.x)
+function normDir(dir) {
+  const x = Number(dir?.x) || 0
+  const y = Number(dir?.y) || 0
+  const len = Math.hypot(x, y)
+  if (len <= 1e-6) return { x: 0, y: 0 }
+  return { x: x / len, y: y / len }
 }
 
-function dist2(a, b) {
-  const dx = a.x - b.x
-  const dy = a.y - b.y
-  return dx * dx + dy * dy
+function circleIntersectsOrientedRect(cx, cy, r, rect) {
+  const cos = Math.cos(rect.angle)
+  const sin = Math.sin(rect.angle)
+
+  const dx = cx - rect.cx
+  const dy = cy - rect.cy
+
+  const lx = dx * cos + dy * sin
+  const ly = -dx * sin + dy * cos
+
+  const hx = rect.hw
+  const hy = rect.hh
+
+  const qx = clamp(lx, -hx, hx)
+  const qy = clamp(ly, -hy, hy)
+
+  const qdx = lx - qx
+  const qdy = ly - qy
+  const distSq = qdx * qdx + qdy * qdy
+  return distSq <= r * r
 }
 
-function entityRadius(e) {
-  if (typeof e.collisionRadius === 'number') return e.collisionRadius
-  if (e.stats && typeof e.stats.collisionRadius === 'number') return e.stats.collisionRadius
-  return 12
+function sendSpawnVizRect(ownerPlayerId, hb) {
+  const ws = wsRegistry.get(ownerPlayerId)
+  if (!wsRegistry.isOpen(ws)) return
+
+  const elapsedAtSendMs = now() - hb.startMs
+
+  wsRegistry.sendTo(ownerPlayerId, {
+    event: 'hitboxSpawned',
+    entityId: hb.ownerEntityId,
+    shapeKey: hb.defKey,
+    startMs: hb.startMs,
+    elapsedAtSendMs: elapsedAtSendMs,
+    durationMs: hb.durationMs,
+    type: 'rect',
+    widthPx: hb.widthPx,
+    heightPx: hb.heightPx,
+    offsetPx: hb.offsetPx,
+    baseAngle: hb.baseAngle
+  })
 }
 
-function isInsideSector({ center, target, centerAngle, arcRad, radiusPx, targetRadiusPx }) {
-  const d2 = dist2(center, target)
-  const maxR = radiusPx + targetRadiusPx
-  if (d2 > maxR * maxR) return false
-  const a = angleBetween(center, target)
-  const delta = Math.abs(normalizeAngle(a - centerAngle))
-  return delta <= arcRad * 0.5
+function sendSpawnVizCone(ownerPlayerId, hb) {
+  const ws = wsRegistry.get(ownerPlayerId)
+  if (!wsRegistry.isOpen(ws)) return
+
+  const elapsedAtSendMs = now() - hb.startMs
+
+  wsRegistry.sendTo(ownerPlayerId, {
+    event: 'hitboxSpawned',
+    entityId: hb.ownerEntityId,
+    shapeKey: hb.defKey,
+    startMs: hb.startMs,
+    elapsedAtSendMs: elapsedAtSendMs,
+    durationMs: hb.durationMs,
+    type: 'cone',
+    radiusPx: hb.radiusPx,
+    arcDegrees: hb.arcDegrees,
+    sweepDegrees: hb.sweepDegrees,
+    baseAngle: hb.baseAngle
+  })
 }
 
-function chooseClockwise(owner, baseAngle) {
-  const ax = Math.cos(baseAngle)
-  const ay = Math.sin(baseAngle)
-
-  if (typeof owner.lastFacingAngle === 'number') {
-    const fx = Math.cos(owner.lastFacingAngle)
-    const fy = Math.sin(owner.lastFacingAngle)
-    const cross = fx * ay - fy * ax
-    return cross < 0
-  }
-
-  if (owner.moveDir && (owner.moveDir.x || owner.moveDir.y)) {
-    const len = Math.hypot(owner.moveDir.x, owner.moveDir.y)
-    if (len > 0) {
-      const fx = owner.moveDir.x / len
-      const fy = owner.moveDir.y / len
-      const cross = fx * ay - fy * ax
-      return cross < 0
-    }
-  }
-
-  return false
+function applyHit(ownerPlayerId, attackerId, targetId, defKey) {
+  const ws = wsRegistry.get(ownerPlayerId)
+  if (!wsRegistry.isOpen(ws)) return
+  wsRegistry.sendTo(ownerPlayerId, {
+    event: 'entityHit',
+    attackerId: attackerId,
+    targetId: targetId,
+    hitboxKey: defKey,
+    source: 'server'
+  })
 }
 
-function spawnSwing({ ownerEntity, aimAt, shapeKey }) {
-  const def = HITBOX_DEFS[shapeKey]
+function spawnBox(ownerPlayerId, ownerEntity, defKey, baseAngleRad) {
+  const def = HITBOX_DEFS[defKey]
   if (!def) return null
-  if (!ownerEntity) return null
-  if (!ownerEntity.entityId) return null
-  if (!ownerEntity.ownerId) return null
+  if (def.type !== 'rect') return null
 
   const startMs = now()
-  const endMs = startMs + def.durationMs
-
-  const baseAngle = angleBetween(ownerEntity.pos, aimAt)
-  const swingRad = deg2rad(def.sweepDegrees)   // keep your existing defs; do not change keys here
-  const arcRad = deg2rad(def.arcDegrees)
-  const clockwise = chooseClockwise(ownerEntity, baseAngle)
-
-  let startAngle = baseAngle
-  if (clockwise) {
-    startAngle = baseAngle + swingRad * 0.5
-  } else {
-    startAngle = baseAngle - swingRad * 0.5
-  }
-
-  ownerEntity.lastFacingAngle = baseAngle
-
   const hb = {
-    ownerId: ownerEntity.entityId,        // entity id (store key)
-    ownerPlayerId: ownerEntity.ownerId,   // player id (store owner)
-    instanceId: ownerEntity.instanceId,
-    shapeKey,
-    startMs,
-    endMs,
-    startAngle,
-    swingRad,
-    arcRad,
-    radiusPx: (typeof def.rangePx === 'number' ? def.rangePx : (typeof def.radiusPx === 'number' ? def.radiusPx : 80)),
-    hitSet: new Set(),
-    clockwise,
-    baseAngle
+    kind: 'rect',
+    defKey: defKey,
+    ownerPlayerId: ownerPlayerId,
+    ownerEntityId: ownerEntity.entityId,
+    startMs: startMs,
+    durationMs: Number(def.durationMs) || 200,
+    expireAtMs: startMs + (Number(def.durationMs) || 200),
+    tickMs: Number(def.tickMs) || 16,
+    widthPx: Number(def.widthPx) || 48,
+    heightPx: Number(def.heightPx) || 32,
+    offsetPx: Number(def.offsetPx) || 16,
+    baseAngle: Number(baseAngleRad) || 0,
+    alreadyHit: new Set()
   }
 
   active.add(hb)
+  sendSpawnVizRect(ownerPlayerId, hb)
   return hb
 }
 
-function step() {
-  const t = now()
-  const toRemove = []
+function spawnSwing(ownerPlayerId, ownerEntity, defKey, baseAngleRad) {
+  const def = HITBOX_DEFS[defKey]
+  if (!def) return null
+  if (def.type !== 'cone') return null
 
-  for (const hb of active) {
-    if (t >= hb.endMs) {
-      toRemove.push(hb)
-      continue
-    }
+  const startMs = now()
+  const hb = {
+    kind: 'cone',
+    defKey: defKey,
+    ownerPlayerId: ownerPlayerId,
+    ownerEntityId: ownerEntity.entityId,
+    startMs: startMs,
+    durationMs: Number(def.durationMs) || 400,
+    expireAtMs: startMs + (Number(def.durationMs) || 400),
+    tickMs: Number(def.tickMs) || 16,
+    radiusPx: Number(def.rangePx) || 96,
+    arcDegrees: Number(def.arcDegrees) || 90,
+    sweepDegrees: Number(def.sweepDegrees) || 120,
+    baseAngle: Number(baseAngleRad) || 0,
+    alreadyHit: new Set()
+  }
 
-    const owner = entityStore.get(hb.ownerPlayerId, hb.ownerId)
-    if (!owner) {
-      toRemove.push(hb)
-      continue
-    }
+  active.add(hb)
+  sendSpawnVizCone(ownerPlayerId, hb)
+  return hb
+}
 
-    const u = (t - hb.startMs) / (hb.endMs - hb.startMs)
+function _stepRect(hb) {
+  const store = entityStore
+  const attacker = store.get(hb.ownerPlayerId, hb.ownerEntityId)
+  if (!attacker) return 'remove'
 
-    let centerAngle = hb.startAngle
-    if (hb.clockwise) {
-      centerAngle = hb.startAngle - hb.swingRad * u
-    } else {
-      centerAngle = hb.startAngle + hb.swingRad * u
-    }
+  const angle = hb.baseAngle
+  const forward = { x: Math.cos(angle), y: Math.sin(angle) }
 
-    // iterate only this player's store
-    entityStore.each(hb.ownerPlayerId, (_id, e) => {
-      if (!e) return
-      if (e.entityId === hb.ownerId) return
-      if (e.instanceId !== hb.instanceId) return
-      if (hb.hitSet.has(e.entityId)) return
+  const cx = attacker.pos.x + forward.x * (hb.offsetPx + hb.heightPx * 0.5)
+  const cy = attacker.pos.y + forward.y * (hb.offsetPx + hb.heightPx * 0.5)
 
-      const ok = isInsideSector({
-        center: owner.pos,
-        target: e.pos,
-        centerAngle,
-        arcRad: hb.arcRad,
-        radiusPx: hb.radiusPx,
-        targetRadiusPx: entityRadius(e)
-      })
-  
-      if (ok) {
-        hb.hitSet.add(e.entityId)
-        console.log(`[hitbox] ${hb.shapeKey} (cw=${hb.clockwise}) owner=${hb.ownerId} hit target=${e.entityId}`)
+  const rect = {
+    cx: cx,
+    cy: cy,
+    angle: angle,
+    hw: hb.widthPx * 0.5,
+    hh: hb.heightPx * 0.5
+  }
+
+  let hitPlayerId = null
+  let hitPlayerEnt = null
+
+  if (typeof store.each === 'function') {
+    store.each(hb.ownerPlayerId, (id, row) => {
+      if (row && row.type === 'player') {
+        hitPlayerId = id
+        hitPlayerEnt = row
       }
+    })
+  } else {
+    const row = store.get(hb.ownerPlayerId, 'player')
+    if (row) {
+      hitPlayerId = 'player'
+      hitPlayerEnt = row
+    }
+  }
+
+  if (!hitPlayerEnt) return
+
+  const r = Collide.radiusOf(hitPlayerEnt)
+  const intersects = circleIntersectsOrientedRect(hitPlayerEnt.pos.x, hitPlayerEnt.pos.y, r, rect)
+
+  if (intersects) {
+    const key = String(hitPlayerId)
+    if (!hb.alreadyHit.has(key)) {
+      hb.alreadyHit.add(key)
+      applyHit(hb.ownerPlayerId, hb.ownerEntityId, hitPlayerId, hb.defKey)
+    }
+  }
+}
+
+function _stepCone(hb) {
+  const store = entityStore
+  const attacker = store.get(hb.ownerPlayerId, hb.ownerEntityId)
+  if (!attacker) return 'remove'
+
+  let hitPlayerEnt = null
+  if (typeof store.each === 'function') {
+    store.each(hb.ownerPlayerId, (_id, row) => {
+      if (row && row.type === 'player') hitPlayerEnt = row
     })
   }
 
-  for (const hb of toRemove) active.delete(hb)
+  if (!hitPlayerEnt) return
+
+  const center = attacker.pos
+  const radius = Number(hb.radiusPx) || 96
+  const halfArc = (Number(hb.arcDegrees) || 90) * 0.5
+  const base = hb.baseAngle
+
+  const dx = hitPlayerEnt.pos.x - center.x
+  const dy = hitPlayerEnt.pos.y - center.y
+  const dist = Math.hypot(dx, dy)
+  if (dist > radius + Collide.radiusOf(hitPlayerEnt)) return
+
+  const angleTo = Math.atan2(dy, dx)
+  let delta = angleTo - base
+  while (delta > Math.PI) delta -= Math.PI * 2
+  while (delta < -Math.PI) delta += Math.PI * 2
+
+  if (Math.abs(delta) * 180 / Math.PI <= halfArc) {
+    const key = String(hitPlayerEnt.entityId || 'player')
+    if (!hb.alreadyHit.has(key)) {
+      hb.alreadyHit.add(key)
+      applyHit(hb.ownerPlayerId, hb.ownerEntityId, hitPlayerEnt.entityId || 'player', hb.defKey)
+    }
+  }
 }
 
-let interval = null
+function step() {
+  if (active.size === 0) return
+  const t = now()
+  const toDrop = []
+
+  active.forEach(hb => {
+    if (t >= hb.expireAtMs) {
+      toDrop.push(hb)
+      return
+    }
+    if (hb.kind === 'rect') _stepRect(hb)
+    if (hb.kind === 'cone') _stepCone(hb)
+  })
+
+  for (let i = 0; i < toDrop.length; i++) active.delete(toDrop[i])
+}
+
+let timer = null
 function start() {
-  if (interval) return
-  interval = setInterval(step, TICK_MS)
+  if (timer) return
+
+  Bus.on('entity:stateChanged', (evt) => {
+    if (!evt) return
+    if (evt.to !== 'attack') return
+    const entity = evt.entity
+    if (!entity || entity.type !== 'mob') return
+
+    const playerId = evt.playerId
+    let playerRow = null
+    if (typeof entityStore.each === 'function') {
+      entityStore.each(playerId, (_id, row) => {
+        if (row && row.type === 'player') playerRow = row
+      })
+    }
+    if (!playerRow) return
+
+    const dx = Number(playerRow.pos.x) - Number(entity.pos.x)
+    const dy = Number(playerRow.pos.y) - Number(entity.pos.y)
+    const baseAngle = Math.atan2(dy, dx)
+
+    let defKey = 'enemy_front_box_basic'
+    try {
+      const ENEMIES_CONFIG = require('../defs/enemiesConfig')
+      if (entity.mobType && ENEMIES_CONFIG[entity.mobType] && ENEMIES_CONFIG[entity.mobType].hitboxDefKey) {
+        defKey = ENEMIES_CONFIG[entity.mobType].hitboxDefKey
+      }
+    } catch (e) {}
+
+    spawnBox(playerId, entity, defKey, baseAngle)
+  })
+
+  timer = setInterval(step, 16)
 }
 
-module.exports = { start, spawnSwing }
+module.exports = { start, spawnSwing, spawnBox }
