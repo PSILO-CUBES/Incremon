@@ -16,6 +16,12 @@ var data : Dictionary
 
 var move_dir : Vector2 = Vector2.ZERO
 
+func _ready() -> void:
+	WebSocketClient.register_handler("entityHit", Callable(self, "_on_entity_hit"))
+
+func _exit_tree() -> void:
+	WebSocketClient.unregister_handler("entityHit", Callable(self, "_on_entity_hit"))
+
 func has_anim(anim: String) -> bool:
 	# Safely check if this AnimatedSprite2D has an animation by name.
 	if animation_sprite == null:
@@ -24,3 +30,7 @@ func has_anim(anim: String) -> bool:
 	if frames == null:
 		return false
 	return frames.has_animation(anim)
+
+func _on_entity_hit(p):
+	print('ouch')
+	pass

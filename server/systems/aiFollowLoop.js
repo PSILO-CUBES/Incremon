@@ -2,27 +2,10 @@
 //
 // Server-side AI that makes mobs chase their owner's player and
 // switch to 'attack' when inside an attack radius. It enforces a
-// server-authoritative ATTACK COOLDOWN and never re-triggers while
-// already in 'attack'. After the attack window completes, the mob
-// resumes walking toward the player using the resumeDir captured
-// at attack start (handled by attackLoop).
+// server-authoritative cooldown and never re-triggers while already
+// in 'attack'. After each attack window, mobs resume pathing.
 //
-// Integrates with existing systems:
-//  - entityStore: read/write positions + states (emits bus events)
-//  - movementLoop: accepts setDir/onMoveStop to drive motion
-//  - fsm: validates and applies state transitions
-//  - attackLoop: starts/finishes attack windows w/ resumeDir support
-//  - wsRegistry: enumerate active players (per-player stores)
-//
-// Optional per-mob tuning:
-//  - If ENEMIES_CONFIG[mob.mobType].attackRangePx is set, it overrides ATTACK_RANGE_PX
-//  - If ENEMIES_CONFIG[mob.mobType].attackCooldownMs is set, it overrides COOLDOWN_MS
-//  - If ENEMIES_CONFIG[mob.mobType].attackTimer is set, it overrides RESUME_ATTACK_MS for the attack window
-//
-// Notes:
-//  - We only call AttackLoop.start *after* a successful FSM.apply(...).
-//  - While in 'attack' we DO NOT push movement (we stop).
-//
+// Conventions: camelCase, no semicolons, no ternaries.
 
 const wsRegistry     = require("../wsRegistry")
 const Store          = require("../world/entityStore")
@@ -31,16 +14,15 @@ const FSM            = require("./fsm")
 const AttackLoop     = require("./attackLoop")
 const ENEMIES_CONFIG = require("../defs/enemiesConfig")
 
-// Base tunables
-const TICK_MS          = 80      // AI tick
-const ATTACK_RANGE_PX  = 64      // default when enemy def doesn't specify
-const RESUME_ATTACK_MS = 180     // default attack window if def.attackTimer missing
-const COOLDOWN_MS      = 600     // extra cooldown *after* the attack window -- default if no config found
+const TICK_MS          = 80
+const DEFAULT_RANGE_PX = 64
+const DEFAULT_WINDOW_MS= 350
+const DEFAULT_CD_MS    = 650
 
-// Cooldown ledger: Map<playerId, Map<entityId, number(nextAtMs)>>
-const _cooldowns = new Map()
+// Map<playerId, Map<entityId, nextAllowedAtMs>>
+const cooldowns = new Map()
 
-function _sub(map, key) {
+function sub(map, key) {
   let m = map.get(key)
   if (!m) {
     m = new Map()
@@ -49,194 +31,167 @@ function _sub(map, key) {
   return m
 }
 
-function _toPos(p) {
-  let x = 0
-  let y = 0
-  if (p && typeof p.x === "number") {
-    x = p.x
-  }
-  if (p && typeof p.y === "number") {
-    y = p.y
-  }
-  return { x: x, y: y }
+function toPos(p) {
+  const out = { x: 0, y: 0 }
+  if (p && typeof p.x === "number") out.x = p.x
+  if (p && typeof p.y === "number") out.y = p.y
+  return out
 }
 
-function _norm(x, y) {
-  const len = Math.hypot(Number(x) || 0, Number(y) || 0)
-  if (!Number.isFinite(len) || len <= 1e-6) return { x: 0, y: 0 }
-  return { x: x / len, y: y / len }
-}
-
-function _distSq(x1, y1, x2, y2) {
-  const dx = Number(x2) - Number(x1)
-  const dy = Number(y2) - Number(y1)
+function distSq(ax, ay, bx, by) {
+  const dx = ax - bx
+  const dy = ay - by
   return dx * dx + dy * dy
 }
 
-function _rangeFor(mob) {
-  var def = null
-  if (mob && ENEMIES_CONFIG && ENEMIES_CONFIG[mob.mobType]) {
-    def = ENEMIES_CONFIG[mob.mobType]
-  }
-  var r = Number(def && def.attackRangePx)
-  if (Number.isFinite(r)) {
-    if (r < 0) {
-      return 0
-    } else {
-      return r
-    }
-  }
-  return ATTACK_RANGE_PX
+function norm(x, y) {
+  const len = Math.hypot(x, y)
+  if (len <= 1e-6) return { x: 0, y: 0 }
+  return { x: x / len, y: y / len }
 }
 
-function _cooldownFor(mob) {
-  var def = null
-  if (mob && ENEMIES_CONFIG && ENEMIES_CONFIG[mob.mobType]) {
-    def = ENEMIES_CONFIG[mob.mobType]
+function rangeFor(mob) {
+  if (!mob) return DEFAULT_RANGE_PX
+  const def = ENEMIES_CONFIG && ENEMIES_CONFIG[mob.mobType]
+  if (def && typeof def.attackRangePx === "number" && Number.isFinite(def.attackRangePx)) {
+    if (def.attackRangePx < 0) return 0
+    return def.attackRangePx
   }
-  var cd = Number(def && def.attackCooldownMs)
-  if (Number.isFinite(cd)) {
-    if (cd < 0) {
-      return 0
-    } else {
-      return cd
-    }
+  if (def && def.attack && typeof def.attack.rangePx === "number" && Number.isFinite(def.attack.rangePx)) {
+    if (def.attack.rangePx < 0) return 0
+    return def.attack.rangePx
   }
-  return COOLDOWN_MS
-}
-
-function _attackTimerFor(mob) {
-  var ms = RESUME_ATTACK_MS
-  var def = null
-  if (mob && ENEMIES_CONFIG && ENEMIES_CONFIG[mob.mobType]) {
-    def = ENEMIES_CONFIG[mob.mobType]
-  }
-  if (def && typeof def.attackTimer === "number") {
-    var n = Number(def.attackTimer)
+  if (def && def.attack && def.attack.hitbox && typeof def.attack.hitbox.rangePx === "number") {
+    const n = Number(def.attack.hitbox.rangePx)
     if (Number.isFinite(n)) {
-      if (n < 0) {
-        ms = 0
-      } else {
-        ms = n
-      }
+      if (n < 0) return 0
+      return n
     }
   }
-  return ms
+  return DEFAULT_RANGE_PX
 }
 
-function _cooldownLeftMs(playerId, entityId) {
-  const sub = _cooldowns.get(playerId)
-  if (!sub) return 0
-  const until = sub.get(String(entityId)) || 0
+function windowFor(mob) {
+  if (!mob) return DEFAULT_WINDOW_MS
+  const def = ENEMIES_CONFIG && ENEMIES_CONFIG[mob.mobType]
+  if (def && def.attack && typeof def.attack.durationMs === "number" && Number.isFinite(def.attack.durationMs)) {
+    if (def.attack.durationMs < 0) return 0
+    return def.attack.durationMs
+  }
+  if (def && def.attack && typeof def.attack.windowMs === "number" && Number.isFinite(def.attack.windowMs)) {
+    if (def.attack.windowMs < 0) return 0
+    return def.attack.windowMs
+  }
+  if (def && def.attack && def.attack.hitbox && typeof def.attack.hitbox.durationMs === "number") {
+    const n = Number(def.attack.hitbox.durationMs)
+    if (Number.isFinite(n)) {
+      if (n < 0) return 0
+      return n
+    }
+  }
+  return DEFAULT_WINDOW_MS
+}
+
+function cooldownFor(mob) {
+  if (!mob) return DEFAULT_CD_MS
+  const def = ENEMIES_CONFIG && ENEMIES_CONFIG[mob.mobType]
+  if (def && typeof def.attackCooldownMs === "number" && Number.isFinite(def.attackCooldownMs)) {
+    if (def.attackCooldownMs < 0) return 0
+    return def.attackCooldownMs
+  }
+  if (def && def.attack && typeof def.attack.cooldownMs === "number" && Number.isFinite(def.attack.cooldownMs)) {
+    if (def.attack.cooldownMs < 0) return 0
+    return def.attack.cooldownMs
+  }
+  return DEFAULT_CD_MS
+}
+
+function cdLeftMs(playerId, entityId) {
+  const submap = cooldowns.get(playerId)
+  if (!submap) return 0
+  const until = submap.get(String(entityId)) || 0
   const left = until - Date.now()
-  if (left > 0) {
-    return left
-  } else {
-    return 0
-  }
+  if (left > 0) return left
+  return 0
 }
 
-function _armCooldown(playerId, entityId, totalMs) {
-  const sub = _sub(_cooldowns, playerId)
-  sub.set(String(entityId), Date.now() + Math.max(0, totalMs))
+function armCooldown(playerId, entityId, windowMs, cooldownMs) {
+  const total = Math.max(0, Number(windowMs) || 0) + Math.max(0, Number(cooldownMs) || 0)
+  sub(cooldowns, playerId).set(String(entityId), Date.now() + total)
 }
 
-// Returns { playerRow, mobs: Array<[entityId, row]> } for a bound player
-function _gatherForPlayer(playerId) {
-  let playerRow = null
+function gather(playerId) {
+  let player = null
   const mobs = []
-  if (typeof Store.each !== "function") {
-    return { playerRow, mobs }
-  }
-  try {
-    Store.each(playerId, (id, row) => {
-      if (!row) return
-      if (row.type === "player") playerRow = row
-    })
-    if (!playerRow) return { playerRow: null, mobs: [] }
-
-    const mapId = playerRow.mapId
-    const instanceId = playerRow.instanceId
-
-    Store.each(playerId, (id, row) => {
-      if (!row) return
-      if (row.type !== "mob") return
-      if (row.mapId !== mapId || row.instanceId !== instanceId) return
-      mobs.push([id, row])
-    })
-  } catch (_e) {}
-  return { playerRow, mobs }
+  Store.each(playerId, (id, row) => {
+    if (!row) return
+    if (row.type === "player") player = row
+  })
+  if (!player) return { player: null, mobs: [] }
+  Store.each(playerId, (id, row) => {
+    if (!row) return
+    if (row.type !== "mob") return
+    if (row.mapId !== player.mapId) return
+    if (row.instanceId !== player.instanceId) return
+    mobs.push([id, row])
+  })
+  return { player, mobs }
 }
 
 function tick() {
-  const playerIds = wsRegistry.dumpBindings()
-  for (const playerId of playerIds) {
-    const { playerRow, mobs } = _gatherForPlayer(playerId)
-    if (!playerRow) continue
+  const bound = wsRegistry.dumpBindings()
+  for (const playerId of bound) {
+    const { player, mobs } = gather(playerId)
+    if (!player || mobs.length === 0) continue
 
-    const p = _toPos(playerRow.pos)
+    const p = toPos(player.pos)
 
     for (const [entityId, mob] of mobs) {
-      if (!mob || mob.hp <= 0) {
+      if (!mob) continue
+      if (mob.hp <= 0) {
         Movement.onMoveStop(playerId, entityId)
         continue
       }
 
-      const e = _toPos(mob.pos)
-      const dx = p.x - e.x
-      const dy = p.y - e.y
-      const distSq = _distSq(p.x, p.y, e.x, e.y)
+      const e = toPos(mob.pos)
+      const rangePx = rangeFor(mob)
+      const inRange = distSq(p.x, p.y, e.x, e.y) <= rangePx * rangePx
+      const dir = norm(p.x - e.x, p.y - e.y)
 
-      const rangePx = _rangeFor(mob)
-      const inRange = distSq <= rangePx * rangePx
-
-      const dir = _norm(dx, dy)
+      if (!inRange) {
+        Movement.setDir(playerId, entityId, dir)
+        continue
+      }
 
       if (mob.state === "attack") {
         Movement.onMoveStop(playerId, entityId)
         continue
       }
 
-      if (inRange) {
-        const cdLeft = _cooldownLeftMs(playerId, entityId)
-        if (cdLeft > 0) {
-          if (dir.x !== 0 || dir.y !== 0) {
-            Movement.setDir(playerId, entityId, dir)
-          } else {
-            Movement.onMoveStop(playerId, entityId)
-          }
-          continue
-        }
-
-        Movement.onMoveStop(playerId, entityId)
-        const res = FSM.apply(playerId, entityId, "attackIntentStart")
-        if (res && res.ok) {
-          var attackTimerMs = _attackTimerFor(mob)
-
-          AttackLoop.start(
-            playerId,
-            entityId,
-            { x: p.x, y: p.y },
-            attackTimerMs,
-            dir
-          )
-
-          const extra = _cooldownFor(mob)
-          _armCooldown(playerId, entityId, attackTimerMs + extra)
+      const left = cdLeftMs(playerId, entityId)
+      if (left > 0) {
+        if (dir.x !== 0 || dir.y !== 0) {
+          Movement.setDir(playerId, entityId, dir)
+        } else {
+          Movement.onMoveStop(playerId, entityId)
         }
         continue
       }
 
-      if (dir.x !== 0 || dir.y !== 0) {
-        Movement.setDir(playerId, entityId, dir)
-      } else {
-        Movement.onMoveStop(playerId, entityId)
-      }
+      Movement.onMoveStop(playerId, entityId)
+
+      const ok = FSM.apply(playerId, entityId, "attackIntentStart")
+      if (!ok || !ok.ok) continue
+
+      const windowMs = windowFor(mob)
+      AttackLoop.start(playerId, entityId, { x: p.x, y: p.y }, windowMs, null)
+
+      const cdMs = cooldownFor(mob)
+      armCooldown(playerId, entityId, windowMs, cdMs)
     }
   }
 }
 
-// Boot the loop
 let timer = setInterval(tick, TICK_MS)
 
 function stop() {

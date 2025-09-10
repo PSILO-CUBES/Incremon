@@ -1,14 +1,13 @@
 extends Node
 class_name HitboxVisualizer
 
-@onready var ws := WebSocketClient
 @export var visual_scene: PackedScene = preload("res://assets/gameplay/entities/combat/SwingHitboxVisual.tscn")
 
 func _ready() -> void:
-	ws.register_handler("hitboxSpawned", Callable(self, "_on_hitbox_spawned"))
+	WebSocketClient.register_handler("hitboxSpawned", Callable(self, "_on_hitbox_spawned"))
 
 func _exit_tree() -> void:
-	ws.unregister_handler("hitboxSpawned", Callable(self, "_on_hitbox_spawned"))
+	WebSocketClient.unregister_handler("hitboxSpawned", Callable(self, "_on_hitbox_spawned"))
 
 func _on_hitbox_spawned(payload: Dictionary) -> void:
 	var entity_id := str(payload.get("entityId", ""))
