@@ -105,4 +105,19 @@ metadata/_custom_type_script = "uid://dmcfne2jbqcik"
 [node name="Controller" parent="." index="7"]
 script = ExtResource("3_1sdu4")
 
+[node name="Control" parent="." index="8"]
+offset_top = -27.5
+offset_bottom = -26.5
+
+[node name="ProgressBar" parent="Control" index="0"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.1
+anchor_right = 0.1
+offset_left = 0.0
+offset_top = -1.0
+offset_right = 32.0
+offset_bottom = 1.0
+value = 75.0
+
 [editable path="Shadow"]

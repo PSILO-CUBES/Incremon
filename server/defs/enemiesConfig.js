@@ -4,6 +4,7 @@ module.exports = {
 
     // Core stats
     hp: 5,
+    maxHp: 5,
     spd: 50,
     atk: 1,
 
@@ -27,8 +28,8 @@ module.exports = {
       // Option A: inline hitbox definition (rect)
       hitbox: {
         type: "rect",
-        widthPx: 48,
-        heightPx: 32,
+        widthPx: 36,
+        heightPx: 48,
         offsetPx: 16,
         durationMs: 300,
         tickMs: 16

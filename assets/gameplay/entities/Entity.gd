@@ -16,14 +16,28 @@ var data : Dictionary
 
 var move_dir : Vector2 = Vector2.ZERO
 
+const HIT_COLOR := Color(1.0, 0.2, 0.2, 1.0)
+const HIT_FADE_IN_TIME := 0.08
+const HIT_HOLD_TIME := 0.05
+const HIT_FADE_OUT_TIME := 0.12
+
+var _base_modulate : Color = Color(1, 1, 1, 1)
+var _hit_tween : Tween
+
 func _ready() -> void:
 	WebSocketClient.register_handler("entityHit", Callable(self, "_on_entity_hit"))
+	if animation_sprite != null:
+		_base_modulate = animation_sprite.modulate
 
 func _exit_tree() -> void:
 	WebSocketClient.unregister_handler("entityHit", Callable(self, "_on_entity_hit"))
+	if _hit_tween != null and _hit_tween.is_running():
+		_hit_tween.kill()
+		_hit_tween = null
+	if animation_sprite != null:
+		animation_sprite.modulate = _base_modulate
 
 func has_anim(anim: String) -> bool:
-	# Safely check if this AnimatedSprite2D has an animation by name.
 	if animation_sprite == null:
 		return false
 	var frames := animation_sprite.sprite_frames
@@ -36,5 +50,26 @@ func _on_entity_hit(p: Dictionary) -> void:
 		return
 	if p.targetId != entity_id:
 		return
-	print("ouch")
-	# apply local effects here (damage flash, sfx, etc.)
+	_play_hit_flash()
+
+func _play_hit_flash() -> void:
+	if animation_sprite == null:
+		return
+	if _hit_tween != null and _hit_tween.is_running():
+		_hit_tween.kill()
+		_hit_tween = null
+	animation_sprite.modulate = _base_modulate
+	_hit_tween = create_tween()
+	_hit_tween.set_parallel(false)
+	var i := 0
+	while i < 2:
+		var phase_in := _hit_tween.tween_property(animation_sprite, "modulate", HIT_COLOR, HIT_FADE_IN_TIME)
+		phase_in.set_trans(Tween.TRANS_SINE)
+		phase_in.set_ease(Tween.EASE_OUT)
+		_hit_tween.tween_interval(HIT_HOLD_TIME)
+		var phase_out := _hit_tween.tween_property(animation_sprite, "modulate", _base_modulate, HIT_FADE_OUT_TIME)
+		phase_out.set_trans(Tween.TRANS_SINE)
+		phase_out.set_ease(Tween.EASE_IN)
+		if i == 0:
+			_hit_tween.tween_interval(0.04)
+		i += 1

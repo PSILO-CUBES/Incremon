@@ -1,15 +1,9 @@
 // server/systems/hitboxManager.js
 //
 // Server-authoritative hitboxes for both CONE swings and RECT front boxes.
-// - Spawns enemy hitboxes automatically when a mob transitions into 'attack'
-// - Hitbox shape + size come from enemiesConfig.attack.hitbox (inline or defKey)
-// - Performs all detection on the server
-// - Emits { event: 'entityHit', attackerId, targetId, hitboxKey, source:'server' }
-//
-// Exports:
-//   start()
-//   spawnSwing(ownerPlayerId, ownerEntity, defKey, baseAngleRad)   // for player existing logic
-//   spawnBox(ownerPlayerId, ownerEntity, defKey, baseAngleRad)
+// - Enemy hitboxes are driven by enemiesConfig[<mob>].attack.hitbox (inline or defKey)
+// - Player swings remain cone
+// - All detection runs on the server
 //
 // Conventions: camelCase, no semicolons.
 
@@ -18,40 +12,14 @@ const ENEMIES_CONFIG  = require('../defs/enemiesConfig')
 const entityStore     = require('../world/entityStore')
 const wsRegistry      = require('../wsRegistry')
 const Bus             = require('../world/bus')
-const Collision       = require('./collision')
+const Collision       = require('./collision') // we still use radiusOf(), etc.
 
-const active = new Set() // currently alive hitboxes
+const active = new Set()
 
-function now() {
-  return Date.now()
-}
+function now() { return Date.now() }
 
-function clamp(v, lo, hi) {
-  if (v < lo) return lo
-  if (v > hi) return hi
-  return v
-}
-
-function normalizeAngle(a) {
-  while (a > Math.PI) a -= Math.PI * 2
-  while (a < -Math.PI) a += Math.PI * 2
-  return a
-}
-
-function isPlayerRow(row) {
-  if (!row) return false
-  if (row.type === 'player') return true
-  if (row.isPlayer === true) return true
-  return false
-}
-
-function isMobRow(row) {
-  if (!row) return false
-  if (row.type === 'mob') return true
-  if (row.isNpc === true) return true
-  if (row.isEnemy === true) return true
-  return false
-}
+function isPlayerRow(row) { return row && row.type === 'player' }
+function isMobRow(row)    { return row && row.type === 'mob' }
 
 function getOwnerPlayerEntity(playerId) {
   let out = null
@@ -73,7 +41,7 @@ function listTargetsFor(hb) {
   if (!attacker) return out
 
   const ownerIsPlayer = isPlayerRow(attacker)
-  const ownerIsMob = isMobRow(attacker)
+  const ownerIsMob    = isMobRow(attacker)
 
   if (ownerIsMob) {
     const playerEnt = getOwnerPlayerEntity(hb.ownerPlayerId)
@@ -85,31 +53,20 @@ function listTargetsFor(hb) {
     if (typeof entityStore.each === 'function') {
       entityStore.each(hb.ownerPlayerId, (id, row) => {
         if (!row) return
-        if (String(id) === String(hb.ownerEntityId)) return
-        if (isMobRow(row)) out.push({ id: String(id), row: row })
+        if (row.type !== 'mob') return
+        if (row.mapId !== attacker.mapId) return
+        if (row.instanceId !== attacker.instanceId) return
+        out.push({ id: String(id), row })
       })
     }
+    return out
   }
 
   return out
 }
 
-function applyHit(ownerPlayerId, attackerId, targetId, defKey) {
-  const ws = wsRegistry.get(ownerPlayerId)
-  if (!wsRegistry.isOpen(ws)) return
-  if (attackerId == targetId) return
-  wsRegistry.sendTo(ownerPlayerId, {
-    event: 'entityHit',
-    attackerId: attackerId,
-    targetId: targetId,
-    hitboxKey: defKey,
-    source: 'server'
-  })
-  console.log('hit')
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Visualization hooks (optional; harmless if no client listener yet)
+// Client visualization messages
 // ─────────────────────────────────────────────────────────────────────────────
 function sendSpawnVizRect(ownerPlayerId, hb) {
   const ws = wsRegistry.get(ownerPlayerId)
@@ -150,28 +107,77 @@ function sendSpawnVizCone(ownerPlayerId, hb) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Geometry: circle vs oriented rectangle
+// Geometry helpers (local; no external dep)
 // ─────────────────────────────────────────────────────────────────────────────
-function circleIntersectsOrientedRect(cx, cy, r, rect) {
-  const cos = Math.cos(rect.angle)
-  const sin = Math.sin(rect.angle)
+function orientedRectCorners(cx, cy, width, height, offset, baseAngle) {
+  const hw = width * 0.5
+  const hh = height * 0.5
+  // place rect center forward along facing
+  const ox = Math.cos(baseAngle) * (offset + hw)
+  const oy = Math.sin(baseAngle) * (offset + hw)
 
-  const dx = cx - rect.cx
-  const dy = cy - rect.cy
+  const corners = [
+    { x: -hw, y: -hh },
+    { x:  hw, y: -hh },
+    { x:  hw, y:  hh },
+    { x: -hw, y:  hh }
+  ]
 
-  const lx = dx * cos + dy * sin
-  const ly = -dx * sin + dy * cos
+  const cosA = Math.cos(baseAngle)
+  const sinA = Math.sin(baseAngle)
 
-  const hx = rect.hw
-  const hy = rect.hh
+  const out = []
+  for (let i = 0; i < 4; i++) {
+    const px = corners[i].x
+    const py = corners[i].y
+    const rx = px * cosA - py * sinA
+    const ry = px * sinA + py * cosA
+    out.push({ x: cx + ox + rx, y: cy + oy + ry })
+  }
+  return out
+}
 
-  const qx = clamp(lx, -hx, hx)
-  const qy = clamp(ly, -hy, hy)
+function closestPointOnSegment(px, py, ax, ay, bx, by) {
+  const abx = bx - ax
+  const aby = by - ay
+  const apx = px - ax
+  const apy = py - ay
+  const ab2 = abx * abx + aby * aby
+  const t = ab2 > 0 ? Math.max(0, Math.min(1, (apx * abx + apy * aby) / ab2)) : 0
+  return [ax + abx * t, ay + aby * t]
+}
 
-  const qdx = lx - qx
-  const qdy = ly - qy
-  const distSq = qdx * qdx + qdy * qdy
-  return distSq <= r * r
+function pointInPolygon(px, py, verts) {
+  let inside = false
+  for (let i = 0, j = verts.length - 1; i < verts.length; j = i++) {
+    const xi = verts[i].x, yi = verts[i].y
+    const xj = verts[j].x, yj = verts[j].y
+    const intersect = ((yi > py) !== (yj > py)) &&
+      (px < (xj - xi) * (py - yi) / ((yj - yi) || 1e-9) + xi)
+    if (intersect) inside = !inside
+  }
+  return inside
+}
+
+// Returns true on intersection
+function circleIntersectsOrientedRect(cx, cy, cr, rectVerts) {
+  if (!Array.isArray(rectVerts) || rectVerts.length !== 4) return false
+
+  // If circle center is inside polygon → intersect
+  if (pointInPolygon(cx, cy, rectVerts)) return true
+
+  // Otherwise, check distance to each edge against radius
+  let minDist2 = Infinity
+  for (let i = 0; i < 4; i++) {
+    const a = rectVerts[i]
+    const b = rectVerts[(i + 1) % 4]
+    const [qx, qy] = closestPointOnSegment(cx, cy, a.x, a.y, b.x, b.y)
+    const dx = cx - qx
+    const dy = cy - qy
+    const d2 = dx * dx + dy * dy
+    if (d2 < minDist2) minDist2 = d2
+  }
+  return minDist2 <= cr * cr
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -232,25 +238,23 @@ function spawnSwing(ownerPlayerId, ownerEntity, defKey, baseAngleRad) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Steppers (FIXED: select foes, exclude self, loop candidates)
+// Steppers
 // ─────────────────────────────────────────────────────────────────────────────
 function stepRect(hb) {
   const attacker = getRow(hb.ownerPlayerId, hb.ownerEntityId)
   if (!attacker) return 'remove'
 
-  const angle = hb.baseAngle
-  const forward = { x: Math.cos(angle), y: Math.sin(angle) }
+  const cx = Number(attacker.pos.x) || 0
+  const cy = Number(attacker.pos.y) || 0
 
-  const cx = attacker.pos.x + forward.x * (hb.offsetPx + hb.heightPx * 0.5)
-  const cy = attacker.pos.y + forward.y * (hb.offsetPx + hb.heightPx * 0.5)
-
-  const rect = {
-    cx: cx,
-    cy: cy,
-    angle: angle,
-    hw: hb.widthPx * 0.5,
-    hh: hb.heightPx * 0.5
-  }
+  const rect = orientedRectCorners(
+    cx,
+    cy,
+    hb.widthPx,
+    hb.heightPx,
+    hb.offsetPx,
+    hb.baseAngle
+  )
 
   const candidates = listTargetsFor(hb)
   if (candidates.length === 0) return
@@ -276,42 +280,51 @@ function stepCone(hb) {
   const attacker = getRow(hb.ownerPlayerId, hb.ownerEntityId)
   if (!attacker) return 'remove'
 
-  const center = attacker.pos
+  const cx = Number(attacker.pos && attacker.pos.x) || 0
+  const cy = Number(attacker.pos && attacker.pos.y) || 0
+
   const radius = Number(hb.radiusPx) || 96
-  const halfArcDeg = Number(hb.arcDegrees) || 90
-  const base = hb.baseAngle
+
+  const arcDegVal = Number(hb.arcDegrees)
+  const halfArcRad = ((Number.isFinite(arcDegVal) ? arcDegVal : 90) * 0.5) * Math.PI / 180
+
+  const sweepRad = (Number(hb.sweepDegrees) || 0) * Math.PI / 180
+  const dur = Math.max(1, Number(hb.durationMs) || 400)
+  const tNow = now()
+  const u = Math.max(0, Math.min(1, (tNow - hb.startMs) / dur))
+
+  const startAngle = Number(hb.baseAngle) - sweepRad * 0.5
+  const currentAngle = startAngle + sweepRad * u
 
   const candidates = listTargetsFor(hb)
-  if (candidates.length === 0) return
+  if (!candidates || candidates.length === 0) return
+
+  const edgeGracePx = 1
 
   for (let i = 0; i < candidates.length; i++) {
     const c = candidates[i]
-    const row = c.row
+    const row = c && c.row ? c.row : null
     if (!row || !row.pos) continue
 
     const key = String(c.id)
     if (hb.alreadyHit.has(key)) continue
 
-    const dx = row.pos.x - center.x
-    const dy = row.pos.y - center.y
+    const dx = Number(row.pos.x) - cx
+    const dy = Number(row.pos.y) - cy
     const dist = Math.hypot(dx, dy)
-    const maxR = radius + Collision.radiusOf(row)
-    if (dist > maxR) continue
+    if (dist > (radius - edgeGracePx)) continue
 
-    const angleTo = Math.atan2(dy, dx)
-    let delta = normalizeAngle(angleTo - base)
-    if (delta < 0) delta = -delta
+    const ang = Math.atan2(dy, dx)
+    let da = ang - currentAngle
+    while (da > Math.PI) da -= Math.PI * 2
+    while (da < -Math.PI) da += Math.PI * 2
+    if (Math.abs(da) > halfArcRad) continue
 
-    if (delta * 180 / Math.PI <= halfArcDeg * 0.5) {
-      hb.alreadyHit.add(key)
-      applyHit(hb.ownerPlayerId, hb.ownerEntityId, key, hb.defKey)
-    }
+    hb.alreadyHit.add(key)
+    applyHit(hb.ownerPlayerId, hb.ownerEntityId, key, hb.defKey)
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main tick
-// ─────────────────────────────────────────────────────────────────────────────
 function step() {
   if (active.size === 0) return
   const t = now()
@@ -330,7 +343,7 @@ function step() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Enemy integration: spawn hitbox when mob enters 'attack'
+// Enemy integration: spawn on state change
 // ─────────────────────────────────────────────────────────────────────────────
 function resolveEnemyHitboxDefKey(entity) {
   let defKey = 'enemy_front_box_basic'
@@ -348,8 +361,7 @@ function resolveEnemyHitboxDefKey(entity) {
     return hb.defKey
   }
 
-  // Inline definition path: we place a temp def in-memory under a synthetic key
-  // so downstream code stays consistent with spawnBox/spawnSwing APIs.
+  // Inline per-mob hitbox (relative to attack.hitbox{})
   if (hb.type === 'rect') {
     const key = `__inline_rect_${entity.mobType}`
     HITBOX_DEFS[key] = {
@@ -380,10 +392,8 @@ function resolveEnemyHitboxDefKey(entity) {
 }
 
 function start() {
-  // fixed tick for all hitboxes
   setInterval(step, 16)
 
-  // when any entity changes to 'attack', spawn an attack hitbox for mobs
   Bus.on('entity:stateChanged', (evt) => {
     if (!evt) return
     if (evt.to !== 'attack') return
@@ -413,6 +423,16 @@ function start() {
       spawnSwing(playerId, entity, defKey, baseAngle)
       return
     }
+  })
+}
+
+function applyHit(ownerPlayerId, attackerId, targetId, hitboxKey) {
+  wsRegistry.sendTo(ownerPlayerId, {
+    event: 'entityHit',
+    attackerId,
+    targetId,
+    hitboxKey,
+    source: 'server'
   })
 }
 

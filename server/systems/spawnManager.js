@@ -208,6 +208,7 @@ function spawnEnemy(opts = {}) {
     // Optional metadata carried alongside:
     stats: {
       hp: def.hp,
+      maxHp: def.maxHp,
       spd: def.spd,
       atk: def.atk,
     },

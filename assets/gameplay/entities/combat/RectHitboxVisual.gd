@@ -10,11 +10,10 @@ var base_angle: float
 var elapsed_at_send_ms: int
 
 var _start_ms_local: int = 0
-var _color_fill := Color(1, 0, 0, 0.22)
-var _color_line := Color(1, 0, 0, 0.85)
-var _line_width := 2.0
 var _max_alpha_fill := 0.22
 var _max_alpha_line := 0.85
+var _line_width := 2.0
+var _u: float = 0.0
 
 func setup(owner_node: Node2D, data: Dictionary) -> void:
 	attack_owner = owner_node
@@ -24,53 +23,39 @@ func setup(owner_node: Node2D, data: Dictionary) -> void:
 	duration_ms = int(data.get("durationMs", 300))
 	base_angle = float(data.get("baseAngle", 0.0))
 	elapsed_at_send_ms = int(data.get("elapsedAtSendMs", 0))
-
-	_start_ms_local = Time.get_ticks_msec() - elapsed_at_send_ms
-	z_as_relative = false
-	z_index = 99999
-
+	_start_ms_local = Time.get_ticks_msec()
 	set_process(true)
-	queue_redraw()
 
 func _process(_dt: float) -> void:
+	var now_ms := Time.get_ticks_msec()
+	var lived := float(now_ms - _start_ms_local + elapsed_at_send_ms)
+	if duration_ms <= 0:
+		_u = 1.0
+	else:
+		_u = clamp(lived / float(duration_ms), 0.0, 1.0)
+
+	if attack_owner and is_instance_valid(attack_owner):
+		global_position = attack_owner.global_position
+	else:
+		# stays where spawned if owner vanished
+		pass
+
+	rotation = base_angle
 	queue_redraw()
 
+	if _u >= 1.0:
+		queue_free()
+
 func _draw() -> void:
-	if attack_owner == null:
-		queue_free()
-		return
+	# Stationary oriented rectangle placed in front of owner along +X of this node
+	var half_h := height_px * 0.5
+	var x0 := offset_px
+	var x1 := offset_px + width_px
 
-	var now_ms := Time.get_ticks_msec()
-	var u := 0.0
-	var denom := float(duration_ms)
-	if denom > 0.0:
-		u = float(now_ms - _start_ms_local) / denom
-	if u >= 1.0:
-		queue_free()
-		return
-	if u < 0.0:
-		u = 0.0
-	if u > 1.0:
-		u = 1.0
-
-	# Pulse alpha slightly to make it readable but unobtrusive.
-	var fill_a := _max_alpha_fill * (0.7 + 0.3 * sin(u * TAU))
-	var line_a := _max_alpha_line
-
-	var fwd := Vector2(cos(base_angle), sin(base_angle))
-	var right := Vector2(fwd.y, -fwd.x)
-
-	var hx := height_px * 0.5
-	var hy := width_px * 0.5
-
-	# Center of the rectangle: placed in front of the attacker
-	var center := fwd * (offset_px + hx)
-
-	# Corners in world axes relative to owner's local origin
-	var c0 := center + (-hx) * fwd + (-hy) * right
-	var c1 := center + (-hx) * fwd + (hy) * right
-	var c2 := center + (hx) * fwd + (hy) * right
-	var c3 := center + (hx) * fwd + (-hy) * right
+	var c0 := Vector2(x0, -half_h)
+	var c1 := Vector2(x1, -half_h)
+	var c2 := Vector2(x1,  half_h)
+	var c3 := Vector2(x0,  half_h)
 
 	var pts := PackedVector2Array()
 	pts.append(c0)
@@ -78,7 +63,13 @@ func _draw() -> void:
 	pts.append(c2)
 	pts.append(c3)
 
-	draw_colored_polygon(pts, Color(_color_fill.r, _color_fill.g, _color_fill.b, fill_a))
+	# Gentle appear → hold → fade
+	var appear = clamp(_u * 3.0, 0.0, 1.0)
+	var fade = clamp(1.0 - max(_u - 0.6, 0.0) / 0.4, 0.0, 1.0)
+	var alpha_fill = _max_alpha_fill * appear * fade
+	var alpha_line = _max_alpha_line * appear * fade
+
+	draw_colored_polygon(pts, Color(1, 0, 0, alpha_fill))
 
 	var outline := PackedVector2Array()
 	outline.append(c0)
@@ -86,4 +77,4 @@ func _draw() -> void:
 	outline.append(c2)
 	outline.append(c3)
 	outline.append(c0)
-	draw_polyline(outline, Color(_color_line.r, _color_line.g, _color_line.b, line_a), _line_width, true)
+	draw_polyline(outline, Color(1, 0, 0, alpha_line), _line_width, true)

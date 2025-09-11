@@ -1,9 +1,41 @@
-[gd_scene load_steps=3 format=3 uid="uid://cn724itkciu67"]
+[gd_scene load_steps=5 format=3 uid="uid://cn724itkciu67"]
 
 [ext_resource type="PackedScene" uid="uid://ctj3jtigwf28u" path="res://assets/gameplay/entities/Entity.tscn" id="1_d2afg"]
 [ext_resource type="Script" uid="uid://s8utrbp2qfgg" path="res://assets/gameplay/entities/monsters/enemies/Enemies.gd" id="1_tnygo"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tnygo"]
+bg_color = Color(1, 0.196078, 0.196078, 0.490196)
+corner_radius_top_left = 15
+corner_radius_top_right = 15
+corner_radius_bottom_right = 15
+corner_radius_bottom_left = 15
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rqi6e"]
+bg_color = Color(0.196078, 0.784314, 0, 1)
+corner_radius_top_left = 15
+corner_radius_top_right = 15
+corner_radius_bottom_right = 15
+corner_radius_bottom_left = 15
+
 [node name="Enemy" instance=ExtResource("1_d2afg")]
+scale = Vector2(1.00279, 1)
 script = ExtResource("1_tnygo")
+
+[node name="Control" type="Control" parent="." index="8"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = -20.0
+offset_right = 20.0
+offset_bottom = 1.0
+
+[node name="ProgressBar" type="ProgressBar" parent="Control" index="0"]
+layout_mode = 0
+offset_left = 2.0
+offset_right = 38.0
+offset_bottom = 2.0
+theme_override_styles/background = SubResource("StyleBoxFlat_tnygo")
+theme_override_styles/fill = SubResource("StyleBoxFlat_rqi6e")
+value = 100.0
+show_percentage = false
 
 [editable path="Shadow"]
