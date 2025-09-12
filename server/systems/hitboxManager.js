@@ -1,22 +1,70 @@
 // server/systems/hitboxManager.js
 //
-// Server-authoritative hitboxes for both CONE swings and RECT front boxes.
-// - Enemy hitboxes are driven by enemiesConfig[<mob>].attack.hitbox (inline or defKey)
-// - Player swings remain cone
-// - All detection runs on the server
+// Authoritative hitboxes. Visuals restored to 'hitboxSpawned' event.
+// No dependency on hitboxDefs.js; we keep an internal HITBOX_DEFS map
+// seeded from playerDefaults/enemiesConfig and generate per-mob inline keys.
 //
-// Conventions: camelCase, no semicolons.
+// Conventions: camelCase, no semicolons, no ternaries.
 
-const HITBOX_DEFS     = require('../defs/hitboxDefs')
-const ENEMIES_CONFIG  = require('../defs/enemiesConfig')
-const entityStore     = require('../world/entityStore')
-const wsRegistry      = require('../wsRegistry')
-const Bus             = require('../world/bus')
-const Collision       = require('./collision') // we still use radiusOf(), etc.
+const ENEMIES_CONFIG   = require('../defs/enemiesConfig')
+const PLAYER_DEFAULTS  = require('../defs/playerDefaults')
+const entityStore      = require('../world/entityStore')
+const wsRegistry       = require('../wsRegistry')
+const Bus              = require('../world/bus')
+const Collision        = require('./collision')
 
+const HITBOX_DEFS = {}
 const active = new Set()
 
 function now() { return Date.now() }
+
+function seedStaticDefs() {
+  try {
+    const atk = PLAYER_DEFAULTS && PLAYER_DEFAULTS.DEFAULT_PLAYER_ATTACKS
+      ? PLAYER_DEFAULTS.DEFAULT_PLAYER_ATTACKS.basicSwing
+      : null
+    const hb = atk && atk.hitbox ? atk.hitbox : null
+    if (hb) {
+      HITBOX_DEFS.player_basic_swing = {
+        type: 'cone',
+        rangePx: Number(hb.rangePx) || 128,
+        arcDegrees: Number(hb.arcDegrees) || 100,
+        sweepDegrees: Number(hb.sweepDegrees) || 140,
+        durationMs: Number(hb.durationMs) || 400,
+        tickMs: Number(hb.tickMs) || 16
+      }
+    }
+  } catch (_e) {}
+
+  let rectSeed = null
+  try {
+    if (ENEMIES_CONFIG && ENEMIES_CONFIG.shared && ENEMIES_CONFIG.shared.enemy_front_box_basic) {
+      rectSeed = ENEMIES_CONFIG.shared.enemy_front_box_basic
+    }
+  } catch (_e) {}
+
+  if (!rectSeed) {
+    rectSeed = {
+      type: 'rect',
+      widthPx: 48,
+      heightPx: 32,
+      offsetPx: 16,
+      durationMs: 300,
+      tickMs: 16
+    }
+  }
+
+  HITBOX_DEFS.enemy_front_box_basic = {
+    type: 'rect',
+    widthPx: Number(rectSeed.widthPx) || 48,
+    heightPx: Number(rectSeed.heightPx) || 32,
+    offsetPx: Number(rectSeed.offsetPx) || 16,
+    durationMs: Number(rectSeed.durationMs) || 300,
+    tickMs: Number(rectSeed.tickMs) || 16
+  }
+}
+
+seedStaticDefs()
 
 function isPlayerRow(row) { return row && row.type === 'player' }
 function isMobRow(row)    { return row && row.type === 'mob' }
@@ -24,8 +72,10 @@ function isMobRow(row)    { return row && row.type === 'mob' }
 function getOwnerPlayerEntity(playerId) {
   let out = null
   if (typeof entityStore.each === 'function') {
-    entityStore.each(playerId, (_id, row) => {
-      if (row && row.type === 'player') out = row
+    entityStore.each(playerId, (id, row) => {
+      if (row) {
+        if (row.type === 'player') out = row
+      }
     })
   }
   return out
@@ -66,7 +116,7 @@ function listTargetsFor(hb) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Client visualization messages
+// Visuals (unchanged event contract): 'hitboxSpawned'
 // ─────────────────────────────────────────────────────────────────────────────
 function sendSpawnVizRect(ownerPlayerId, hb) {
   const ws = wsRegistry.get(ownerPlayerId)
@@ -107,12 +157,11 @@ function sendSpawnVizCone(ownerPlayerId, hb) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Geometry helpers (local; no external dep)
+// Geometry helpers
 // ─────────────────────────────────────────────────────────────────────────────
 function orientedRectCorners(cx, cy, width, height, offset, baseAngle) {
   const hw = width * 0.5
   const hh = height * 0.5
-  // place rect center forward along facing
   const ox = Math.cos(baseAngle) * (offset + hw)
   const oy = Math.sin(baseAngle) * (offset + hw)
 
@@ -140,48 +189,59 @@ function orientedRectCorners(cx, cy, width, height, offset, baseAngle) {
 function closestPointOnSegment(px, py, ax, ay, bx, by) {
   const abx = bx - ax
   const aby = by - ay
+  const abLenSq = abx * abx + aby * aby
+  if (abLenSq <= 0) return { x: ax, y: ay }
   const apx = px - ax
   const apy = py - ay
-  const ab2 = abx * abx + aby * aby
-  const t = ab2 > 0 ? Math.max(0, Math.min(1, (apx * abx + apy * aby) / ab2)) : 0
-  return [ax + abx * t, ay + aby * t]
+  let t = (apx * abx + apy * aby) / abLenSq
+  if (t < 0) t = 0
+  if (t > 1) t = 1
+  return { x: ax + abx * t, y: ay + aby * t }
 }
 
-function pointInPolygon(px, py, verts) {
-  let inside = false
-  for (let i = 0, j = verts.length - 1; i < verts.length; j = i++) {
-    const xi = verts[i].x, yi = verts[i].y
-    const xj = verts[j].x, yj = verts[j].y
-    const intersect = ((yi > py) !== (yj > py)) &&
-      (px < (xj - xi) * (py - yi) / ((yj - yi) || 1e-9) + xi)
-    if (intersect) inside = !inside
+function circleIntersectsOrientedRect(cx, cy, r, rectCorners) {
+  if (r <= 0) return false
+  const inside = pointInOrientedRect(cx, cy, rectCorners)
+  if (inside) return true
+
+  let minDist = Infinity
+  for (let j = 0; j < 4; j++) {
+    const a = rectCorners[j]
+    const b = rectCorners[(j + 1) % 4]
+    const cp = closestPointOnSegment(cx, cy, a.x, a.y, b.x, b.y)
+    const d = Math.hypot(cx - cp.x, cy - cp.y)
+    if (d < minDist) minDist = d
   }
-  return inside
+  return minDist <= r
 }
 
-// Returns true on intersection
-function circleIntersectsOrientedRect(cx, cy, cr, rectVerts) {
-  if (!Array.isArray(rectVerts) || rectVerts.length !== 4) return false
+function pointInOrientedRect(px, py, corners) {
+  const a = corners[0]
+  const b = corners[1]
+  const d = corners[3]
 
-  // If circle center is inside polygon → intersect
-  if (pointInPolygon(cx, cy, rectVerts)) return true
+  const abx = b.x - a.x
+  const aby = b.y - a.y
+  const adx = d.x - a.x
+  const ady = d.y - a.y
 
-  // Otherwise, check distance to each edge against radius
-  let minDist2 = Infinity
-  for (let i = 0; i < 4; i++) {
-    const a = rectVerts[i]
-    const b = rectVerts[(i + 1) % 4]
-    const [qx, qy] = closestPointOnSegment(cx, cy, a.x, a.y, b.x, b.y)
-    const dx = cx - qx
-    const dy = cy - qy
-    const d2 = dx * dx + dy * dy
-    if (d2 < minDist2) minDist2 = d2
-  }
-  return minDist2 <= cr * cr
+  const apx = px - a.x
+  const apy = py - a.y
+
+  const dotAB = apx * abx + apy * aby
+  const dotAD = apx * adx + apy * ady
+  const abLenSq = abx * abx + aby * aby
+  const adLenSq = adx * adx + ady * ady
+
+  if (dotAB < 0) return false
+  if (dotAB > abLenSq) return false
+  if (dotAD < 0) return false
+  if (dotAD > adLenSq) return false
+  return true
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Spawners
+// Spawners (keep defKey API so visuals payload has shapeKey)
 // ─────────────────────────────────────────────────────────────────────────────
 function spawnBox(ownerPlayerId, ownerEntity, defKey, baseAngleRad) {
   const def = HITBOX_DEFS[defKey]
@@ -280,19 +340,14 @@ function stepCone(hb) {
   const attacker = getRow(hb.ownerPlayerId, hb.ownerEntityId)
   if (!attacker) return 'remove'
 
-  const cx = Number(attacker.pos && attacker.pos.x) || 0
-  const cy = Number(attacker.pos && attacker.pos.y) || 0
+  const cx = Number(attacker.pos.x) || 0
+  const cy = Number(attacker.pos.y) || 0
 
-  const radius = Number(hb.radiusPx) || 96
+  const sweepRad = (Number(hb.sweepDegrees) || 120) * Math.PI / 180
+  const arcRad   = (Number(hb.arcDegrees) || 90)    * Math.PI / 180
+  const halfArcRad = arcRad * 0.5
 
-  const arcDegVal = Number(hb.arcDegrees)
-  const halfArcRad = ((Number.isFinite(arcDegVal) ? arcDegVal : 90) * 0.5) * Math.PI / 180
-
-  const sweepRad = (Number(hb.sweepDegrees) || 0) * Math.PI / 180
-  const dur = Math.max(1, Number(hb.durationMs) || 400)
-  const tNow = now()
-  const u = Math.max(0, Math.min(1, (tNow - hb.startMs) / dur))
-
+  const u = Math.min(1, Math.max(0, (now() - hb.startMs) / Math.max(1, hb.durationMs)))
   const startAngle = Number(hb.baseAngle) - sweepRad * 0.5
   const currentAngle = startAngle + sweepRad * u
 
@@ -312,7 +367,9 @@ function stepCone(hb) {
     const dx = Number(row.pos.x) - cx
     const dy = Number(row.pos.y) - cy
     const dist = Math.hypot(dx, dy)
-    if (dist > (radius - edgeGracePx)) continue
+    if (dist > (Number(HITBOX_DEFS[hb.defKey]?.rangePx) || hb.radiusPx)) {
+      if (dist > hb.radiusPx) continue
+    }
 
     const ang = Math.atan2(dy, dx)
     let da = ang - currentAngle
@@ -326,28 +383,28 @@ function stepCone(hb) {
 }
 
 function step() {
-  if (active.size === 0) return
-  const t = now()
+  const nowMs = now()
   const toRemove = []
-
-  active.forEach(hb => {
-    if (t >= hb.expireAtMs) {
+  active.forEach((hb) => {
+    if (!hb) return
+    if (hb.expireAtMs <= nowMs) {
       toRemove.push(hb)
       return
     }
+
     if (hb.kind === 'rect') stepRect(hb)
     if (hb.kind === 'cone') stepCone(hb)
   })
-
   for (let i = 0; i < toRemove.length; i++) active.delete(toRemove[i])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Enemy integration: spawn on state change
+// Enemy hitbox resolution → defKey (keeps visuals contract intact)
 // ─────────────────────────────────────────────────────────────────────────────
 function resolveEnemyHitboxDefKey(entity) {
   let defKey = 'enemy_front_box_basic'
-  if (!entity || !entity.mobType) return defKey
+  if (!entity) return defKey
+  if (!entity.mobType) return defKey
 
   const cfg = ENEMIES_CONFIG[entity.mobType]
   if (!cfg) return defKey
@@ -361,7 +418,6 @@ function resolveEnemyHitboxDefKey(entity) {
     return hb.defKey
   }
 
-  // Inline per-mob hitbox (relative to attack.hitbox{})
   if (hb.type === 'rect') {
     const key = `__inline_rect_${entity.mobType}`
     HITBOX_DEFS[key] = {
@@ -412,13 +468,12 @@ function start() {
 
     const defKey = resolveEnemyHitboxDefKey(entity)
     const def = HITBOX_DEFS[defKey]
-    if (!def) return
 
+    if (!def) return
     if (def.type === 'rect') {
       spawnBox(playerId, entity, defKey, baseAngle)
       return
     }
-
     if (def.type === 'cone') {
       spawnSwing(playerId, entity, defKey, baseAngle)
       return
@@ -429,9 +484,9 @@ function start() {
 function applyHit(ownerPlayerId, attackerId, targetId, hitboxKey) {
   wsRegistry.sendTo(ownerPlayerId, {
     event: 'entityHit',
-    attackerId,
-    targetId,
-    hitboxKey,
+    attackerId: attackerId,
+    targetId: targetId,
+    hitboxKey: hitboxKey,
     source: 'server'
   })
 }

@@ -1,8 +1,29 @@
-[gd_scene load_steps=2 format=3 uid="uid://chrh4o8s2ikuv"]
+[gd_scene load_steps=5 format=3 uid="uid://chrh4o8s2ikuv"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kgxx3"]
 bg_color = Color(0.0980392, 0.0980392, 0.0980392, 1)
 corner_radius_bottom_right = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_f1u3i"]
+bg_color = Color(0, 0.784314, 0, 1)
+corner_radius_top_left = 15
+corner_radius_top_right = 15
+corner_radius_bottom_right = 15
+corner_radius_bottom_left = 15
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_enhr1"]
+bg_color = Color(0, 0.784314, 0.784314, 1)
+corner_radius_top_left = 15
+corner_radius_top_right = 15
+corner_radius_bottom_right = 15
+corner_radius_bottom_left = 15
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0p0dd"]
+bg_color = Color(1, 0.588235, 0, 1)
+corner_radius_top_left = 15
+corner_radius_top_right = 15
+corner_radius_bottom_right = 15
+corner_radius_bottom_left = 15
 
 [node name="PlayerInfo" type="Control"]
 layout_mode = 3
@@ -41,11 +62,11 @@ vertical_alignment = 1
 
 [node name="VBoxContainer" type="VBoxContainer" parent="PlayerInfoPanel"]
 layout_mode = 0
-offset_left = 121.0
-offset_top = 7.0
-offset_right = 520.0
-offset_bottom = 58.0
-theme_override_constants/separation = 0
+offset_left = 124.0
+offset_top = 3.0
+offset_right = 523.0
+offset_bottom = 59.0
+theme_override_constants/separation = 2
 
 [node name="HPContainer" type="HBoxContainer" parent="PlayerInfoPanel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 10)
@@ -56,10 +77,16 @@ alignment = 1
 layout_mode = 2
 
 [node name="ProgressBar" type="ProgressBar" parent="PlayerInfoPanel/VBoxContainer/HPContainer/CenterContainer"]
-custom_minimum_size = Vector2(375, 10)
+custom_minimum_size = Vector2(375, 15)
 layout_mode = 2
+theme_override_styles/fill = SubResource("StyleBoxFlat_f1u3i")
 value = 100.0
 show_percentage = false
+
+[node name="Label" type="Label" parent="PlayerInfoPanel/VBoxContainer/HPContainer/CenterContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "0/0"
 
 [node name="Label" type="Label" parent="PlayerInfoPanel/VBoxContainer/HPContainer"]
 custom_minimum_size = Vector2(20, 0)
@@ -77,10 +104,16 @@ alignment = 1
 layout_mode = 2
 
 [node name="ProgressBar" type="ProgressBar" parent="PlayerInfoPanel/VBoxContainer/MPContainer/CenterContainer"]
-custom_minimum_size = Vector2(375, 10)
+custom_minimum_size = Vector2(375, 15)
 layout_mode = 2
+theme_override_styles/fill = SubResource("StyleBoxFlat_enhr1")
 value = 100.0
 show_percentage = false
+
+[node name="Label" type="Label" parent="PlayerInfoPanel/VBoxContainer/MPContainer/CenterContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "0/0"
 
 [node name="Label" type="Label" parent="PlayerInfoPanel/VBoxContainer/MPContainer"]
 custom_minimum_size = Vector2(20, 0)
@@ -98,10 +131,16 @@ alignment = 1
 layout_mode = 2
 
 [node name="ProgressBar" type="ProgressBar" parent="PlayerInfoPanel/VBoxContainer/XPContainer/CenterContainer"]
-custom_minimum_size = Vector2(375, 10)
+custom_minimum_size = Vector2(375, 15)
 layout_mode = 2
+theme_override_styles/fill = SubResource("StyleBoxFlat_0p0dd")
 value = 100.0
 show_percentage = false
+
+[node name="Label" type="Label" parent="PlayerInfoPanel/VBoxContainer/XPContainer/CenterContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "0/0"
 
 [node name="Label" type="Label" parent="PlayerInfoPanel/VBoxContainer/XPContainer"]
 custom_minimum_size = Vector2(20, 0)

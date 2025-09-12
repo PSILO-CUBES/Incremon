@@ -4,8 +4,10 @@ const { DEFAULT_PLAYER_DATA } = require('../defs/playerDefaults');
 // Subdocument for stats (no _id)
 const PlayerDataSchema = new mongoose.Schema({
   stats : {
-    maxHp: { type: Number, default: DEFAULT_PLAYER_DATA.maxHp },
+    maxHp: { type: Number, default: DEFAULT_PLAYER_DATA.hp },
     hp:    { type: Number, default: DEFAULT_PLAYER_DATA.hp },
+    maxMp: { type: Number, default: DEFAULT_PLAYER_DATA.mp },
+    mp:    { type: Number, default: DEFAULT_PLAYER_DATA.mp },
     atk:   { type: Number, default: DEFAULT_PLAYER_DATA.atk },
     def:   { type: Number, default: DEFAULT_PLAYER_DATA.def },
     acc:   { type: Number, default: DEFAULT_PLAYER_DATA.acc },
