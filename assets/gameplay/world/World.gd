@@ -3,19 +3,17 @@ extends Node2D
 @onready var map_root: Node = self
 
 const MAPS := {
-	# FIX: match actual file casing in repo
 	"area1/m1": "res://assets/gameplay/maps/Area1/M1/M1.tscn"
 }
 
 const PLAYER_SCENE := preload("res://assets/gameplay/entities/player/Player.tscn")
-# WorldPosApplier has class_name, but preload is fine too if you prefer:
 const WorldPosApplier = preload("res://assets/gameplay/world/WorldPosApplier.gd")
 
 const INTERP_DELAY_MS := 150
 const BUFFER_LIMIT := 50
 
 var _pos_applier: WorldPosApplier
-var _remote_buffers := {}                # eid -> Array[{ t:int, pos:Vector2 }]
+var _remote_buffers := {}
 var _local_player: Node2D = null
 var _player_entity_id: String = ""
 
@@ -28,8 +26,8 @@ func _ready() -> void:
 	WebSocketClient.register_handler("playerSpawn", Callable(self, "_on_player_spawn"))
 	WebSocketClient.register_handler("changePosition", Callable(self, "_on_change_position"))
 	WebSocketClient.register_handler("entitySpawned", Callable(self, "_on_entity_spawn"))
+	WebSocketClient.register_handler("entityDespawned", Callable(self, "_on_entity_despawned"))
 
-	# FIX: kick the world handshake; server replies with worldInit
 	WebSocketClient.send_action("worldEnter")
 
 func _exit_tree() -> void:
@@ -38,6 +36,7 @@ func _exit_tree() -> void:
 	WebSocketClient.unregister_handler("playerSpawn", Callable(self, "_on_player_spawn"))
 	WebSocketClient.unregister_handler("changePosition", Callable(self, "_on_change_position"))
 	WebSocketClient.unregister_handler("entitySpawned", Callable(self, "_on_entity_spawn"))
+	WebSocketClient.unregister_handler("entityDespawned", Callable(self, "_on_entity_despawned"))
 
 func _physics_process(_dt: float) -> void:
 	var now_ms: int = Time.get_ticks_msec()
@@ -47,8 +46,6 @@ func _physics_process(_dt: float) -> void:
 		var buf: Array = _remote_buffers[eid]
 		if buf.is_empty():
 			continue
-
-		# Keep the buffer ordered and trim old points ahead of our target time
 		buf.sort_custom(func(a, b): return a.t < b.t)
 		while buf.size() > 2 and buf[1].t <= target_time:
 			buf.pop_front()
@@ -56,8 +53,6 @@ func _physics_process(_dt: float) -> void:
 		var node := _get_entity_node(eid)
 		if node == null:
 			continue
-
-		# Route through applier so EnemyWalk can reconcile server snapshots
 		_pos_applier.apply_node_pos_from_buffer(node, buf, target_time)
 
 func _on_world_init(payload: Dictionary) -> void:
@@ -75,7 +70,6 @@ func _on_world_init(payload: Dictionary) -> void:
 	var instance := packed.instantiate()
 	map_root.add_child(instance)
 
-	# Tell server we finished loading the map so it can send playerSpawn
 	WebSocketClient.send_action("worldReady", {"mapId": map_id})
 
 func _on_world_init_failed(payload: Dictionary) -> void:
@@ -116,17 +110,14 @@ func _on_player_spawn(payload: Dictionary) -> void:
 	else:
 		_local_player.global_position = spawn
 
-	# ACK so server stops resending spawn and marks hasSpawned
 	WebSocketClient.send_action("playerSpawnAck", {"entityId": _player_entity_id})
 
 func _on_change_position(payload: Dictionary) -> void:
 	var eid := str(payload.get("entityId", ""))
 	var pos_d: Dictionary = payload.get("pos", {}) as Dictionary
 	var server_pos := Vector2(float(pos_d.get("x", 0.0)), float(pos_d.get("y", 0.0)))
-	# CRUCIAL: use server timestamp if present
 	var ts: int = int(pos_d.get("t", Time.get_ticks_msec()))
 
-	# Local player → reconcile only; mobs go through buffer
 	if eid == _player_entity_id and _local_player and _is_player_in_manual_mode(_local_player):
 		_reconcile_local(server_pos)
 		return
@@ -139,7 +130,7 @@ func _on_change_position(payload: Dictionary) -> void:
 		buf.pop_front()
 
 func _on_entity_spawn(payload: Dictionary) -> void:
-	var eid := str(payload.get("entityId", ""))  # note: server sometimes wraps under entity.entityId
+	var eid := str(payload.get("entityId", ""))
 	var ent: Dictionary = payload.get("entity", {}) as Dictionary
 	if eid == "" and ent.has("entityId"):
 		eid = str(ent.get("entityId", ""))
@@ -181,7 +172,6 @@ func _on_entity_spawn(payload: Dictionary) -> void:
 	else:
 		map_root.add_child(node_to_add)
 
-	# Seed buffer so applier has a baseline
 	if not _remote_buffers.has(eid):
 		_remote_buffers[eid] = []
 	var buf: Array = _remote_buffers[eid]
@@ -189,7 +179,27 @@ func _on_entity_spawn(payload: Dictionary) -> void:
 	if buf.size() > BUFFER_LIMIT:
 		buf.pop_front()
 
-# --- Helpers ---
+func _on_entity_despawned(payload: Dictionary) -> void:
+	var eid := str(payload.get("entityId", ""))
+	if eid == "":
+		return
+	if _remote_buffers.has(eid):
+		_remote_buffers.erase(eid)
+	var node := _get_entity_node(eid)
+	if node == null:
+		return
+	if node.has_method("force_despawn"):
+		node.call("force_despawn")
+		return
+	if "collision_layer" in node:
+		node.collision_layer = 0
+	if "collision_mask" in node:
+		node.collision_mask = 0
+	node.set_physics_process(false)
+	node.set_process(false)
+	var tw := create_tween()
+	tw.tween_property(node, "modulate:a", 0.0, 0.35)
+	tw.finished.connect(func(): node.queue_free())
 
 func _reconcile_local(server_pos: Vector2) -> void:
 	if not _local_player:

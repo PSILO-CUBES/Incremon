@@ -9,11 +9,12 @@ class_name Entity
 
 @onready var animation_sprite: AnimatedSprite2D = %AnimatedSprite2D
 
+const POINTING_HAND = preload("res://assets/utils/icons/pointing_hand.png")
+
 var last_facing_left : bool = false
 var current_state : String
 
 var data : Dictionary
-
 var move_dir : Vector2 = Vector2.ZERO
 
 const HIT_COLOR := Color(1.0, 0.2, 0.2, 1.0)
@@ -25,6 +26,7 @@ var _base_modulate : Color = Color(1, 1, 1, 1)
 var _hit_tween : Tween
 
 func _ready() -> void:
+	_resolve_animation_sprite()
 	WebSocketClient.register_handler("entityHit", Callable(self, "_on_entity_hit"))
 	if animation_sprite != null:
 		_base_modulate = animation_sprite.modulate
@@ -48,7 +50,7 @@ func has_anim(anim: String) -> bool:
 func _on_entity_hit(p: Dictionary) -> void:
 	if not p.has("targetId"):
 		return
-	if p.targetId != entity_id:
+	if str(p.targetId) != str(entity_id):
 		return
 	_play_hit_flash()
 
@@ -73,3 +75,16 @@ func _play_hit_flash() -> void:
 		if i == 0:
 			_hit_tween.tween_interval(0.04)
 		i += 1
+
+func _resolve_animation_sprite() -> void:
+	if animation_sprite != null:
+		return
+	var found := _find_first_child_sprite()
+	if found != null:
+		animation_sprite = found
+
+func _find_first_child_sprite() -> AnimatedSprite2D:
+	for c in get_children():
+		if c is AnimatedSprite2D:
+			return c
+	return null

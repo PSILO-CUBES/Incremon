@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://b1ynourt5ah25"]
+
+[node name="ChatBox" type="TextEdit"]
+offset_right = 500.0
+offset_bottom = 48.0
+theme_override_font_sizes/font_size = 28
+scroll_fit_content_height = true

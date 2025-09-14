@@ -1,4 +1,6 @@
-[gd_scene load_steps=5 format=3 uid="uid://chrh4o8s2ikuv"]
+[gd_scene load_steps=6 format=3 uid="uid://chrh4o8s2ikuv"]
+
+[ext_resource type="Script" uid="uid://dmyaeyfdo71v1" path="res://assets/ui/overworld/ProgressBarManagement.gd" id="1_enhr1"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kgxx3"]
 bg_color = Color(0.0980392, 0.0980392, 0.0980392, 1)
@@ -60,89 +62,96 @@ offset_bottom = 59.0
 text = "LVL 80"
 vertical_alignment = 1
 
-[node name="VBoxContainer" type="VBoxContainer" parent="PlayerInfoPanel"]
+[node name="ProgressBarContainer" type="VBoxContainer" parent="PlayerInfoPanel"]
 layout_mode = 0
 offset_left = 124.0
 offset_top = 3.0
 offset_right = 523.0
 offset_bottom = 59.0
 theme_override_constants/separation = 2
+script = ExtResource("1_enhr1")
 
-[node name="HPContainer" type="HBoxContainer" parent="PlayerInfoPanel/VBoxContainer"]
+[node name="HPContainer" type="HBoxContainer" parent="PlayerInfoPanel/ProgressBarContainer"]
 custom_minimum_size = Vector2(0, 10)
 layout_mode = 2
 alignment = 1
 
-[node name="CenterContainer" type="CenterContainer" parent="PlayerInfoPanel/VBoxContainer/HPContainer"]
+[node name="CenterContainer" type="CenterContainer" parent="PlayerInfoPanel/ProgressBarContainer/HPContainer"]
 layout_mode = 2
 
-[node name="ProgressBar" type="ProgressBar" parent="PlayerInfoPanel/VBoxContainer/HPContainer/CenterContainer"]
+[node name="HPProgressBar" type="ProgressBar" parent="PlayerInfoPanel/ProgressBarContainer/HPContainer/CenterContainer"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(375, 15)
 layout_mode = 2
 theme_override_styles/fill = SubResource("StyleBoxFlat_f1u3i")
 value = 100.0
 show_percentage = false
 
-[node name="Label" type="Label" parent="PlayerInfoPanel/VBoxContainer/HPContainer/CenterContainer"]
+[node name="HPLabel" type="Label" parent="PlayerInfoPanel/ProgressBarContainer/HPContainer/CenterContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "0/0"
 
-[node name="Label" type="Label" parent="PlayerInfoPanel/VBoxContainer/HPContainer"]
+[node name="Label" type="Label" parent="PlayerInfoPanel/ProgressBarContainer/HPContainer"]
 custom_minimum_size = Vector2(20, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "HP"
 horizontal_alignment = 1
 
-[node name="MPContainer" type="HBoxContainer" parent="PlayerInfoPanel/VBoxContainer"]
+[node name="MPContainer" type="HBoxContainer" parent="PlayerInfoPanel/ProgressBarContainer"]
 custom_minimum_size = Vector2(0, 10)
 layout_mode = 2
 alignment = 1
 
-[node name="CenterContainer" type="CenterContainer" parent="PlayerInfoPanel/VBoxContainer/MPContainer"]
+[node name="CenterContainer" type="CenterContainer" parent="PlayerInfoPanel/ProgressBarContainer/MPContainer"]
 layout_mode = 2
 
-[node name="ProgressBar" type="ProgressBar" parent="PlayerInfoPanel/VBoxContainer/MPContainer/CenterContainer"]
+[node name="MPProgressBar" type="ProgressBar" parent="PlayerInfoPanel/ProgressBarContainer/MPContainer/CenterContainer"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(375, 15)
 layout_mode = 2
 theme_override_styles/fill = SubResource("StyleBoxFlat_enhr1")
 value = 100.0
 show_percentage = false
 
-[node name="Label" type="Label" parent="PlayerInfoPanel/VBoxContainer/MPContainer/CenterContainer"]
+[node name="MPLabel" type="Label" parent="PlayerInfoPanel/ProgressBarContainer/MPContainer/CenterContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "0/0"
 
-[node name="Label" type="Label" parent="PlayerInfoPanel/VBoxContainer/MPContainer"]
+[node name="Label" type="Label" parent="PlayerInfoPanel/ProgressBarContainer/MPContainer"]
 custom_minimum_size = Vector2(20, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "MP"
 horizontal_alignment = 1
 
-[node name="XPContainer" type="HBoxContainer" parent="PlayerInfoPanel/VBoxContainer"]
+[node name="XPContainer" type="HBoxContainer" parent="PlayerInfoPanel/ProgressBarContainer"]
 custom_minimum_size = Vector2(0, 10)
 layout_mode = 2
 alignment = 1
 
-[node name="CenterContainer" type="CenterContainer" parent="PlayerInfoPanel/VBoxContainer/XPContainer"]
+[node name="CenterContainer" type="CenterContainer" parent="PlayerInfoPanel/ProgressBarContainer/XPContainer"]
 layout_mode = 2
 
-[node name="ProgressBar" type="ProgressBar" parent="PlayerInfoPanel/VBoxContainer/XPContainer/CenterContainer"]
+[node name="XPProgressBar" type="ProgressBar" parent="PlayerInfoPanel/ProgressBarContainer/XPContainer/CenterContainer"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(375, 15)
 layout_mode = 2
 theme_override_styles/fill = SubResource("StyleBoxFlat_0p0dd")
 value = 100.0
 show_percentage = false
 
-[node name="Label" type="Label" parent="PlayerInfoPanel/VBoxContainer/XPContainer/CenterContainer"]
+[node name="XPLabel" type="Label" parent="PlayerInfoPanel/ProgressBarContainer/XPContainer/CenterContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "0/0"
 
-[node name="Label" type="Label" parent="PlayerInfoPanel/VBoxContainer/XPContainer"]
+[node name="Label" type="Label" parent="PlayerInfoPanel/ProgressBarContainer/XPContainer"]
 custom_minimum_size = Vector2(20, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 12

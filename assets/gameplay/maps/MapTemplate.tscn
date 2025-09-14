@@ -1,4 +1,6 @@
-[gd_scene load_steps=2 format=3 uid="uid://2haorl5bahq4"]
+[gd_scene load_steps=3 format=3 uid="uid://2haorl5bahq4"]
+
+[ext_resource type="Script" uid="uid://c4wwg87owgqgf" path="res://assets/ui/overworld/DeselectChatBox.gd" id="1_ner0l"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_gblyj"]
 size = Vector2(1920, 1077)
@@ -7,7 +9,7 @@ size = Vector2(1920, 1077)
 y_sort_enabled = true
 
 [node name="MapArea" type="Area2D" parent="."]
-visible = false
+script = ExtResource("1_ner0l")
 
 [node name="MapShape" type="CollisionShape2D" parent="MapArea"]
 position = Vector2(978, 529)

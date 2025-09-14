@@ -10,6 +10,7 @@
 radius = 27.0
 
 [node name="Entity" type="CharacterBody2D" groups=["Entities"]]
+input_pickable = true
 script = ExtResource("1_cacr3")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]

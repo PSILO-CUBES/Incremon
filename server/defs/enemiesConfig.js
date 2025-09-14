@@ -26,7 +26,7 @@ module.exports = {
     attack: {
       rangePx: 64,
       cooldownMs: 1200,
-      durationMs: 300,
+      durationMs: 1000,
 
       // Inline canonical hitbox (preferred)
       hitbox: {

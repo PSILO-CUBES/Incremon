@@ -1,29 +1,30 @@
 const SLTokenManager = require("../tokenManagers/sltokenManager");
 
 const routes = {
-  login:           require("./network/login"),
-  tokenLogin:      require("./network/tokenLogin"),
-  createAccount:   require("./network/createAccount"),
+  login:             require("./network/login"),
+  tokenLogin:        require("./network/tokenLogin"),
+  createAccount:     require("./network/createAccount"),
 
-  slTokenRefresh:  require("./tokens/slTokenRefresh"),
+  slTokenRefresh:    require("./tokens/slTokenRefresh"),
   
-  worldEnter:      require("./game/world/worldEnter"),
-  worldReady:      require("./game/world/worldReady"),
+  worldEnter:        require("./game/world/worldEnter"),
+  worldReady:        require("./game/world/worldReady"),
 
-  playerSpawnAck:  require("./game/entities/player/playerSpawnAck"),
+  playerSpawnAck:    require("./game/entities/player/playerSpawnAck"),
+  statsGet:          require("./game/entities/player/statsGet"),
   
-  moveIntentStart: require("./game/entities/move/moveIntentStart"),
-  moveIntentStop:  require("./game/entities/move/moveIntentStop"),
+  moveIntentStart:   require("./game/entities/move/moveIntentStart"),
+  moveIntentStop:    require("./game/entities/move/moveIntentStop"),
   attackIntentStart: require("./game/entities/combat/attackIntentStart")
 };
 
 // ---------- security knobs ----------
 const ALLOWED_ACTIONS = new Set(Object.keys(routes));
-const MAX_MSG_BYTES = 64 * 1024;            // 64KB max per message
-const MAX_ACTION_LEN = 32;                   // keep action names short
-const MAX_DEPTH = 8;                         // sanitize recursion depth
-const RATE_TOKENS = 30;                      // token bucket capacity
-const RATE_REFILL_PER_SEC = 30;              // refill rate
+const MAX_MSG_BYTES = 64 * 1024; // 64KB max per message
+const MAX_ACTION_LEN = 32;       // keep action names short
+const MAX_DEPTH = 8;             // sanitize recursion depth
+const RATE_TOKENS = 30;          // token bucket capacity
+const RATE_REFILL_PER_SEC = 30;  // refill rate
 
 function isPlainObject(v) {
   return !!v && typeof v === "object" && !Array.isArray(v);

@@ -38,6 +38,7 @@ offset_right = -1130.0
 offset_bottom = -690.0
 grow_horizontal = 2
 grow_vertical = 2
+focus_mode = 0
 theme_override_colors/font_color = Color(0.784314, 0.784314, 0.784314, 1)
 theme_override_styles/hover_pressed = SubResource("StyleBoxFlat_a12hr")
 theme_override_styles/hover = SubResource("StyleBoxFlat_g2x5p")

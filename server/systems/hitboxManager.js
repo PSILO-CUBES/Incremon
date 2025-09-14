@@ -12,6 +12,7 @@ const entityStore      = require('../world/entityStore')
 const wsRegistry       = require('../wsRegistry')
 const Bus              = require('../world/bus')
 const Collision        = require('./collision')
+const Despawn          = require('../world/despawn')
 
 const HITBOX_DEFS = {}
 const active = new Set()
@@ -447,6 +448,8 @@ function resolveEnemyHitboxDefKey(entity) {
   return defKey
 }
 
+const pendingAttackTimers = new WeakMap()
+
 function start() {
   setInterval(step, 16)
 
@@ -470,18 +473,54 @@ function start() {
     const def = HITBOX_DEFS[defKey]
 
     if (!def) return
-    if (def.type === 'rect') {
-      spawnBox(playerId, entity, defKey, baseAngle)
-      return
+
+    if (pendingAttackTimers.has(entity)) {
+      clearTimeout(pendingAttackTimers.get(entity))
+      pendingAttackTimers.delete(entity)
     }
-    if (def.type === 'cone') {
-      spawnSwing(playerId, entity, defKey, baseAngle)
-      return
+
+    const attackDelayMs = 250
+
+    const timeout = setTimeout(() => {
+      if (def.type === 'rect') {
+        spawnBox(playerId, entity, defKey, baseAngle)
+        return
+      }
+      if (def.type === 'cone') {
+        spawnSwing(playerId, entity, defKey, baseAngle)
+        return
+      }
+    }, attackDelayMs)
+
+    pendingAttackTimers.set(entity, timeout)
+  })
+
+  Bus.on('entity:stateChanged', (evt) => {
+    if (!evt) return
+    const entity = evt.entity
+    if (!entity) return
+    if (evt.to === 'attack') return
+    const t = pendingAttackTimers.get(entity)
+    if (t) {
+      clearTimeout(t)
+      pendingAttackTimers.delete(entity)
     }
   })
 }
 
 function applyHit(ownerPlayerId, attackerId, targetId, hitboxKey) {
+  function finiteNumber(v, fb) {
+    if (typeof v === 'number' && Number.isFinite(v)) return v
+    return fb
+  }
+
+  function clamp(n, lo, hi) {
+    let x = n
+    if (x < lo) x = lo
+    if (x > hi) x = hi
+    return x
+  }
+
   wsRegistry.sendTo(ownerPlayerId, {
     event: 'entityHit',
     attackerId: attackerId,
@@ -489,6 +528,67 @@ function applyHit(ownerPlayerId, attackerId, targetId, hitboxKey) {
     hitboxKey: hitboxKey,
     source: 'server'
   })
+
+  const attacker = entityStore.get(ownerPlayerId, attackerId)
+  const target = entityStore.get(ownerPlayerId, targetId)
+  if (!attacker) return
+  if (!target) return
+
+  const aStats = attacker.stats || {}
+  const tStats = target.stats || {}
+  const targetType = String(target.type || '')
+
+  const atkMulti = 1
+
+  if (targetType === 'mob') {
+    const maxHpNow = finiteNumber(tStats.maxHp, finiteNumber(tStats.hp, 1))
+    const hpNow = clamp(finiteNumber(tStats.hp, maxHpNow), 0, maxHpNow)
+    const dmg = finiteNumber(aStats.atk, 1) * atkMulti
+
+    let nextHp = hpNow - dmg
+    if (nextHp < 0) nextHp = 0
+    if (nextHp > maxHpNow) nextHp = maxHpNow
+
+    tStats.hp = nextHp
+    target.stats = tStats
+
+    if (nextHp <= 0) {
+      const Despawn = require('../world/despawn')
+      try {
+        Despawn.despawn(ownerPlayerId, targetId, 'killed')
+      } catch (_e) {}
+      return
+    }
+
+    wsRegistry.sendTo(ownerPlayerId, {
+      event: 'entityStatsUpdate',
+      entityId: targetId,
+      stats: { hp: nextHp, maxHp: maxHpNow }
+    })
+    return
+  }
+
+  if (targetType === 'player') {
+    const maxHp = finiteNumber(tStats.maxHp, finiteNumber(tStats.hp, 10))
+    const hp = clamp(finiteNumber(tStats.hp, maxHp), 0, maxHp)
+    const dmgP = finiteNumber(aStats.atk, 1)
+
+    let nextHpP = hp - dmgP
+    if (nextHpP < 0) nextHpP = 0
+    if (nextHpP > maxHp) nextHpP = maxHp
+
+    tStats.hp = nextHpP
+    target.stats = tStats
+
+    const ws = wsRegistry.get(ownerPlayerId)
+    if (!wsRegistry.isOpen(ws)) return
+
+    wsRegistry.sendTo(ownerPlayerId, {
+      event: 'statsUpdate',
+      stats: { hp: nextHpP }
+    })
+    return
+  }
 }
 
 module.exports = { start, spawnSwing, spawnBox }
