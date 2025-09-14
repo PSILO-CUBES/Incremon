@@ -14,34 +14,50 @@ const Bus              = require('../world/bus')
 const Collision        = require('./collision')
 const Despawn          = require('../world/despawn')
 
-const HITBOX_DEFS = {}
+const HITBOX_DEFS = Object.create(null)
+
 const active = new Set()
 
-function now() { return Date.now() }
+function now() {
+  return Date.now()
+}
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Seed static defs from configs so we don’t hardcode sizes in multiple places
+// ─────────────────────────────────────────────────────────────────────────────
 function seedStaticDefs() {
+  let swingSeed = null
   try {
-    const atk = PLAYER_DEFAULTS && PLAYER_DEFAULTS.DEFAULT_PLAYER_ATTACKS
+    const def = PLAYER_DEFAULTS && PLAYER_DEFAULTS.DEFAULT_PLAYER_ATTACKS
       ? PLAYER_DEFAULTS.DEFAULT_PLAYER_ATTACKS.basicSwing
       : null
-    const hb = atk && atk.hitbox ? atk.hitbox : null
-    if (hb) {
-      HITBOX_DEFS.player_basic_swing = {
-        type: 'cone',
-        rangePx: Number(hb.rangePx) || 128,
-        arcDegrees: Number(hb.arcDegrees) || 100,
-        sweepDegrees: Number(hb.sweepDegrees) || 140,
-        durationMs: Number(hb.durationMs) || 400,
-        tickMs: Number(hb.tickMs) || 16
-      }
-    }
+    if (def && def.hitbox) swingSeed = def.hitbox
   } catch (_e) {}
+
+  if (!swingSeed) swingSeed = {
+    type: 'cone',
+    rangePx: 96,
+    arcDegrees: 90,
+    sweepDegrees: 120,
+    durationMs: 400,
+    tickMs: 16
+  }
+
+  HITBOX_DEFS.player_basic_swing = {
+    type: 'cone',
+    rangePx: Number(swingSeed.rangePx) || 96,
+    arcDegrees: Number(swingSeed.arcDegrees) || 90,
+    sweepDegrees: Number(swingSeed.sweepDegrees) || 120,
+    durationMs: Number(swingSeed.durationMs) || 400,
+    tickMs: Number(swingSeed.tickMs) || 16
+  }
 
   let rectSeed = null
   try {
-    if (ENEMIES_CONFIG && ENEMIES_CONFIG.shared && ENEMIES_CONFIG.shared.enemy_front_box_basic) {
-      rectSeed = ENEMIES_CONFIG.shared.enemy_front_box_basic
-    }
+    const e0 = ENEMIES_CONFIG && ENEMIES_CONFIG.slime
+      ? ENEMIES_CONFIG.slime
+      : null
+    if (e0 && e0.attack && e0.attack.hitbox) rectSeed = e0.attack.hitbox
   } catch (_e) {}
 
   if (!rectSeed) {
@@ -73,7 +89,7 @@ function isMobRow(row)    { return row && row.type === 'mob' }
 function getOwnerPlayerEntity(playerId) {
   let out = null
   if (typeof entityStore.each === 'function') {
-    entityStore.each(playerId, (id, row) => {
+    entityStore.each(playerId, (_id, row) => {
       if (row) {
         if (row.type === 'player') out = row
       }
@@ -82,10 +98,14 @@ function getOwnerPlayerEntity(playerId) {
   return out
 }
 
-function getRow(playerId, entityId) {
-  return entityStore.get(playerId, entityId)
+function getRow(playerId, id) {
+  if (!playerId) return null
+  return entityStore.get(playerId, id)
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Candidate listing (same as before)
+// ─────────────────────────────────────────────────────────────────────────────
 function listTargetsFor(hb) {
   const out = []
   const attacker = getRow(hb.ownerPlayerId, hb.ownerEntityId)
@@ -104,6 +124,8 @@ function listTargetsFor(hb) {
     if (typeof entityStore.each === 'function') {
       entityStore.each(hb.ownerPlayerId, (id, row) => {
         if (!row) return
+        if (row.state === 'despawn' || row.state === 'dead') return
+        if (id === hb.ownerEntityId) return
         if (row.type !== 'mob') return
         if (row.mapId !== attacker.mapId) return
         if (row.instanceId !== attacker.instanceId) return
@@ -157,8 +179,6 @@ function sendSpawnVizCone(ownerPlayerId, hb) {
   })
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Geometry helpers
 // ─────────────────────────────────────────────────────────────────────────────
 function orientedRectCorners(cx, cy, width, height, offset, baseAngle) {
   const hw = width * 0.5
@@ -241,6 +261,47 @@ function pointInOrientedRect(px, py, corners) {
   return true
 }
 
+function circleIntersectsSector(cx, cy, r, ox, oy, radius, centerAngle, halfArcRad) {
+  if (r <= 0) {
+    const dx0 = cx - ox
+    const dy0 = cy - oy
+    const d0 = Math.hypot(dx0, dy0)
+    if (d0 > radius) return false
+    let ang0 = Math.atan2(dy0, dx0)
+    let da0 = ang0 - centerAngle
+    while (da0 > Math.PI) da0 -= Math.PI * 2
+    while (da0 < -Math.PI) da0 += Math.PI * 2
+    return Math.abs(da0) <= halfArcRad
+  }
+
+  const dx = cx - ox
+  const dy = cy - oy
+  const dist = Math.hypot(dx, dy)
+
+  if (!Number.isFinite(dist)) return false
+  if (dist <= r) return true
+
+  if ((dist - r) > radius) return false
+
+  let ang = Math.atan2(dy, dx)
+  let da = ang - centerAngle
+  while (da > Math.PI) da -= Math.PI * 2
+  while (da < -Math.PI) da += Math.PI * 2
+
+  let pad = 0
+  if (dist > 0) {
+    const s = r / dist
+    let clamped = s
+    if (clamped < -1) clamped = -1
+    if (clamped > 1) clamped = 1
+    pad = Math.asin(clamped)
+  } else {
+    pad = Math.PI
+  }
+
+  return Math.abs(da) <= (halfArcRad + pad)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Spawners (keep defKey API so visuals payload has shapeKey)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -256,8 +317,8 @@ function spawnBox(ownerPlayerId, ownerEntity, defKey, baseAngleRad) {
     ownerPlayerId: ownerPlayerId,
     ownerEntityId: ownerEntity.entityId,
     startMs: startMs,
-    durationMs: Number(def.durationMs) || 200,
-    expireAtMs: startMs + (Number(def.durationMs) || 200),
+    expireAtMs: startMs + Number(def.durationMs || 0),
+    durationMs: Number(def.durationMs) || 300,
     tickMs: Number(def.tickMs) || 16,
     widthPx: Number(def.widthPx) || 48,
     heightPx: Number(def.heightPx) || 32,
@@ -283,8 +344,8 @@ function spawnSwing(ownerPlayerId, ownerEntity, defKey, baseAngleRad) {
     ownerPlayerId: ownerPlayerId,
     ownerEntityId: ownerEntity.entityId,
     startMs: startMs,
+    expireAtMs: startMs + Number(def.durationMs || 0),
     durationMs: Number(def.durationMs) || 400,
-    expireAtMs: startMs + (Number(def.durationMs) || 400),
     tickMs: Number(def.tickMs) || 16,
     radiusPx: Number(def.rangePx) || 96,
     arcDegrees: Number(def.arcDegrees) || 90,
@@ -345,17 +406,20 @@ function stepCone(hb) {
   const cy = Number(attacker.pos.y) || 0
 
   const sweepRad = (Number(hb.sweepDegrees) || 120) * Math.PI / 180
-  const arcRad   = (Number(hb.arcDegrees) || 90)    * Math.PI / 180
+  const arcRad = (Number(hb.arcDegrees) || 90) * Math.PI / 180
   const halfArcRad = arcRad * 0.5
 
-  const u = Math.min(1, Math.max(0, (now() - hb.startMs) / Math.max(1, hb.durationMs)))
+  const uNum = now() - hb.startMs
+  const uDen = Math.max(1, hb.durationMs)
+  let u = uNum / uDen
+  if (u < 0) u = 0
+  if (u > 1) u = 1
+
   const startAngle = Number(hb.baseAngle) - sweepRad * 0.5
   const currentAngle = startAngle + sweepRad * u
 
   const candidates = listTargetsFor(hb)
   if (!candidates || candidates.length === 0) return
-
-  const edgeGracePx = 1
 
   for (let i = 0; i < candidates.length; i++) {
     const c = candidates[i]
@@ -365,18 +429,19 @@ function stepCone(hb) {
     const key = String(c.id)
     if (hb.alreadyHit.has(key)) continue
 
-    const dx = Number(row.pos.x) - cx
-    const dy = Number(row.pos.y) - cy
-    const dist = Math.hypot(dx, dy)
-    if (dist > (Number(HITBOX_DEFS[hb.defKey]?.rangePx) || hb.radiusPx)) {
-      if (dist > hb.radiusPx) continue
-    }
+    const r = Collision.radiusOf(row)
+    const hit = circleIntersectsSector(
+      Number(row.pos.x) || 0,
+      Number(row.pos.y) || 0,
+      Number(r) || 0,
+      cx,
+      cy,
+      Number(hb.radiusPx) || 0,
+      currentAngle,
+      halfArcRad
+    )
 
-    const ang = Math.atan2(dy, dx)
-    let da = ang - currentAngle
-    while (da > Math.PI) da -= Math.PI * 2
-    while (da < -Math.PI) da += Math.PI * 2
-    if (Math.abs(da) > halfArcRad) continue
+    if (!hit) continue
 
     hb.alreadyHit.add(key)
     applyHit(hb.ownerPlayerId, hb.ownerEntityId, key, hb.defKey)
@@ -415,10 +480,6 @@ function resolveEnemyHitboxDefKey(entity) {
   const hb = attack.hitbox
   if (!hb) return defKey
 
-  if (hb.defKey && HITBOX_DEFS[hb.defKey]) {
-    return hb.defKey
-  }
-
   if (hb.type === 'rect') {
     const key = `__inline_rect_${entity.mobType}`
     HITBOX_DEFS[key] = {
@@ -453,46 +514,34 @@ const pendingAttackTimers = new WeakMap()
 function start() {
   setInterval(step, 16)
 
-  Bus.on('entity:stateChanged', (evt) => {
+  Bus.on('entity:attack', (evt) => {
     if (!evt) return
-    if (evt.to !== 'attack') return
-
-    const entity = evt.entity
-    if (!entity) return
-    if (entity.type !== 'mob') return
-
+    const attacker = evt.entity
     const playerId = evt.playerId
-    const playerEnt = getOwnerPlayerEntity(playerId)
-    if (!playerEnt) return
+    if (!attacker || !playerId) return
 
-    const dx = Number(playerEnt.pos.x) - Number(entity.pos.x)
-    const dy = Number(playerEnt.pos.y) - Number(entity.pos.y)
-    const baseAngle = Math.atan2(dy, dx)
+    const defKey = attacker.type === 'mob'
+      ? resolveEnemyHitboxDefKey(attacker)
+      : 'player_basic_swing'
 
-    const defKey = resolveEnemyHitboxDefKey(entity)
     const def = HITBOX_DEFS[defKey]
-
     if (!def) return
 
-    if (pendingAttackTimers.has(entity)) {
-      clearTimeout(pendingAttackTimers.get(entity))
-      pendingAttackTimers.delete(entity)
-    }
-
-    const attackDelayMs = 250
+    const baseAngle = Number(evt.baseAngleRad) || 0
+    const attackDelayMs = Number(evt.delayMs) || 0
 
     const timeout = setTimeout(() => {
       if (def.type === 'rect') {
-        spawnBox(playerId, entity, defKey, baseAngle)
+        spawnBox(playerId, attacker, defKey, baseAngle)
         return
       }
       if (def.type === 'cone') {
-        spawnSwing(playerId, entity, defKey, baseAngle)
+        spawnSwing(playerId, attacker, defKey, baseAngle)
         return
       }
     }, attackDelayMs)
 
-    pendingAttackTimers.set(entity, timeout)
+    pendingAttackTimers.set(attacker, timeout)
   })
 
   Bus.on('entity:stateChanged', (evt) => {
@@ -514,46 +563,39 @@ function applyHit(ownerPlayerId, attackerId, targetId, hitboxKey) {
     return fb
   }
 
-  function clamp(n, lo, hi) {
-    let x = n
-    if (x < lo) x = lo
-    if (x > hi) x = hi
-    return x
-  }
+  const attacker = getRow(ownerPlayerId, attackerId)
+  const target = getRow(ownerPlayerId, targetId)
+  if (!attacker || !target) return
 
-  wsRegistry.sendTo(ownerPlayerId, {
-    event: 'entityHit',
-    attackerId: attackerId,
-    targetId: targetId,
-    hitboxKey: hitboxKey,
-    source: 'server'
-  })
+  const cfg = attacker.type === 'player'
+    ? PLAYER_DEFAULTS
+    : ENEMIES_CONFIG[attacker.mobType]
 
-  const attacker = entityStore.get(ownerPlayerId, attackerId)
-  const target = entityStore.get(ownerPlayerId, targetId)
-  if (!attacker) return
-  if (!target) return
+  let dmg = 5
+  try {
+    if (attacker.type === 'player') {
+      const atk = PLAYER_DEFAULTS.DEFAULT_PLAYER_ATTACKS.basicSwing
+      if (atk && typeof atk.damage === 'number') {
+        dmg = finiteNumber(atk.damage, 5)
+      }
+    } else {
+      const hb = cfg && cfg.attack ? cfg.attack : null
+      if (hb && typeof hb.damage === 'number') {
+        dmg = finiteNumber(hb.damage, 5)
+      }
+    }
+  } catch (_e) {}
 
-  const aStats = attacker.stats || {}
-  const tStats = target.stats || {}
-  const targetType = String(target.type || '')
+  const tStats = target.stats || { hp: 1, maxHp: 1 }
+  const nextHp = finiteNumber(tStats.hp, 1) - dmg
+  const maxHpNow = finiteNumber(tStats.maxHp, 1)
 
-  const atkMulti = 1
-
-  if (targetType === 'mob') {
-    const maxHpNow = finiteNumber(tStats.maxHp, finiteNumber(tStats.hp, 1))
-    const hpNow = clamp(finiteNumber(tStats.hp, maxHpNow), 0, maxHpNow)
-    const dmg = finiteNumber(aStats.atk, 1) * atkMulti
-
-    let nextHp = hpNow - dmg
-    if (nextHp < 0) nextHp = 0
-    if (nextHp > maxHpNow) nextHp = maxHpNow
-
-    tStats.hp = nextHp
-    target.stats = tStats
-
-    if (nextHp <= 0) {
-      const Despawn = require('../world/despawn')
+  if (target.type === 'mob') {
+    const row = entityStore.get(ownerPlayerId, targetId)
+    if (!row) return
+    const nextHpM = nextHp
+    row.stats = { hp: nextHpM, maxHp: maxHpNow }
+    if (nextHpM <= 0) {
       try {
         Despawn.despawn(ownerPlayerId, targetId, 'killed')
       } catch (_e) {}
@@ -563,25 +605,23 @@ function applyHit(ownerPlayerId, attackerId, targetId, hitboxKey) {
     wsRegistry.sendTo(ownerPlayerId, {
       event: 'entityStatsUpdate',
       entityId: targetId,
-      stats: { hp: nextHp, maxHp: maxHpNow }
+      stats: { hp: nextHpM, maxHp: maxHpNow }
     })
     return
   }
 
-  if (targetType === 'player') {
-    const maxHp = finiteNumber(tStats.maxHp, finiteNumber(tStats.hp, 10))
-    const hp = clamp(finiteNumber(tStats.hp, maxHp), 0, maxHp)
-    const dmgP = finiteNumber(aStats.atk, 1)
-
-    let nextHpP = hp - dmgP
-    if (nextHpP < 0) nextHpP = 0
-    if (nextHpP > maxHp) nextHpP = maxHp
-
-    tStats.hp = nextHpP
-    target.stats = tStats
-
+  if (target.type === 'player') {
     const ws = wsRegistry.get(ownerPlayerId)
     if (!wsRegistry.isOpen(ws)) return
+
+    const nextHpP = nextHp
+    const row = entityStore.get(ownerPlayerId, targetId)
+    if (!row) return
+    row.stats = { hp: nextHpP, maxHp: maxHpNow }
+
+    if (nextHpP <= 0) {
+      // future: player death flow
+    }
 
     wsRegistry.sendTo(ownerPlayerId, {
       event: 'statsUpdate',
