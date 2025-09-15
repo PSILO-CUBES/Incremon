@@ -14,7 +14,6 @@ module.exports = {
     basicSwing: Object.freeze({
       name: "basicSwing",
       cooldownMs: 1000,
-      damage: 10,
       hitbox: Object.freeze({
         type: "cone",
         rangePx: 128,

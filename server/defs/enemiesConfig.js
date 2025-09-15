@@ -24,9 +24,9 @@ module.exports = {
     tags: ['bones', 'basic'],
 
     attack: {
-      rangePx: 64,
+      rangePx: 84,
       cooldownMs: 1200,
-      durationMs: 1000,
+      durationMs: 300,
 
       // Inline canonical hitbox (preferred)
       hitbox: {
@@ -34,7 +34,7 @@ module.exports = {
         widthPx: 36,
         heightPx: 48,
         offsetPx: 16,
-        durationMs: 300,
+        durationMs: 1000,
         tickMs: 16
       }
 

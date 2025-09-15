@@ -1,12 +1,12 @@
 extends Entity
 class_name Enemy
 
-@onready var health_bar_container = $"HealthBarContainer"
-@onready var hp_progress_bar = $"HealthBarContainer/ProgressBar"
+@onready var health_bar_container: Node = $"HealthBarContainer"
+@onready var hp_progress_bar: ProgressBar = $"HealthBarContainer/ProgressBar"
 
-var last_hp := -1
-var last_max_hp := -1
-var is_dying := false
+var last_hp: int = -1
+var last_max_hp: int = -1
+var is_dying: bool = false
 
 func _ready() -> void:
 	super._ready()
@@ -29,7 +29,7 @@ func _init_from_local_data() -> void:
 	var hp := 0
 	var max_hp := 0
 	if typeof(data) == TYPE_DICTIONARY and data.has("stats"):
-		var stats = data.stats
+		var stats: Dictionary = data.stats
 		if typeof(stats) == TYPE_DICTIONARY:
 			if stats.has("hp"):
 				hp = int(stats.hp)
@@ -70,13 +70,22 @@ func _on_entity_stats_update(payload: Dictionary) -> void:
 	_apply_hp(hp, max_hp)
 
 func _apply_hp(hp: int, max_hp: int) -> void:
+	var took_damage := false
+	if last_hp >= 0 and hp < last_hp:
+		took_damage = true
+
 	last_hp = hp
 	last_max_hp = max_hp
-	var pct := 0.0
-	if max_hp > 0:
-		pct = float(hp) / float(max_hp) * 100.0
+
 	if hp_progress_bar:
+		var pct := 0.0
+		if max_hp > 0:
+			pct = float(hp) / float(max_hp) * 100.0
 		hp_progress_bar.value = pct
+
+	if took_damage:
+		_play_hit_flash()
+
 	if hp <= 0:
 		_begin_death_fade()
 

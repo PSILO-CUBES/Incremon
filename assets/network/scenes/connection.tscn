@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bfu7c461c45de"]
 
-[ext_resource type="Script" uid="uid://d1jiq3yv7qcen" path="res://assets/network/scripts/Connection.gd" id="1_ha1u7"]
+[ext_resource type="Script" uid="uid://d1jiq3yv7qcen" path="res://assets/network/scripts/connection.gd" id="1_ha1u7"]
 
 [node name="ConnectionScreen" type="Node2D"]
 
