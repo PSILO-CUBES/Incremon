@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://gvpepsd11y4k"]
+[gd_scene load_steps=13 format=3 uid="uid://gvpepsd11y4k"]
 
 [ext_resource type="PackedScene" uid="uid://fuva5432gtkv" path="res://assets/ui/HoverableButton.tscn" id="1_tc7em"]
 [ext_resource type="Texture2D" uid="uid://cuavio20leuhg" path="res://assets/utils/icons/backpack.png" id="2_a6ixx"]
@@ -13,15 +13,32 @@
 bg_color = Color(0.0980392, 0.0980392, 0.0980392, 1)
 corner_radius_top_left = 5
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qpj2b"]
-bg_color = Color(0.196078, 0.196078, 0.196078, 0.196078)
-corner_radius_top_left = 2
-corner_radius_top_right = 2
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 2
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_usgiu"]
+bg_color = Color(0.196078, 0.196078, 0.196078, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+shadow_size = 1
+shadow_offset = Vector2(0, 3)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6r4fv"]
-bg_color = Color(0.6, 0.6, 0.6, 0)
+bg_color = Color(0.0980392, 0.0980392, 0.0980392, 1)
+corner_radius_top_left = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qpj2b"]
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+bg_color = Color(0.19607843, 0.19607843, 0.19607843, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+corner_detail = 5
+shadow_size = 3
+shadow_offset = Vector2(0, 2)
 
 [node name="NavBar" type="Control"]
 layout_mode = 3
@@ -35,75 +52,162 @@ offset_right = 1280.0
 offset_bottom = 720.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_a6ixx")
 
-[node name="HoverableButton" parent="OWButtonsPanel" instance=ExtResource("1_tc7em")]
-custom_minimum_size = Vector2(135, 30)
-layout_mode = 1
-offset_left = 9.0
+[node name="GeneralMenu" type="HBoxContainer" parent="OWButtonsPanel"]
+layout_mode = 0
+offset_left = 12.0
 offset_top = 8.0
-offset_right = -612.0
-offset_bottom = -7.0
+offset_right = 755.0
+offset_bottom = 53.0
+theme_override_constants/separation = 14
+
+[node name="HoverableButton" parent="OWButtonsPanel/GeneralMenu" instance=ExtResource("1_tc7em")]
+custom_minimum_size = Vector2(135, 45)
+layout_mode = 2
 icon = ExtResource("2_mk1uq")
 icon_alignment = 1
 expand_icon = true
 
-[node name="HoverableButton2" parent="OWButtonsPanel" instance=ExtResource("1_tc7em")]
-custom_minimum_size = Vector2(135, 30)
-layout_mode = 1
-offset_left = 162.0
-offset_top = 8.0
-offset_right = -459.0
-offset_bottom = -7.0
+[node name="HoverableButton2" parent="OWButtonsPanel/GeneralMenu" instance=ExtResource("1_tc7em")]
+custom_minimum_size = Vector2(135, 45)
+layout_mode = 2
 icon = ExtResource("2_a6ixx")
 icon_alignment = 1
 expand_icon = true
 
-[node name="HoverableButton3" parent="OWButtonsPanel" instance=ExtResource("1_tc7em")]
-custom_minimum_size = Vector2(135, 30)
-layout_mode = 1
-offset_left = 312.0
-offset_top = 8.0
-offset_right = -309.0
-offset_bottom = -7.0
+[node name="HoverableButton3" parent="OWButtonsPanel/GeneralMenu" instance=ExtResource("1_tc7em")]
+custom_minimum_size = Vector2(135, 45)
+layout_mode = 2
 icon = ExtResource("4_5x5ia")
 icon_alignment = 1
 expand_icon = true
 
-[node name="HoverableButton4" parent="OWButtonsPanel" instance=ExtResource("1_tc7em")]
-custom_minimum_size = Vector2(135, 30)
-layout_mode = 1
-offset_left = 462.0
-offset_top = 8.0
-offset_right = -159.0
-offset_bottom = -7.0
+[node name="HoverableButton4" parent="OWButtonsPanel/GeneralMenu" instance=ExtResource("1_tc7em")]
+custom_minimum_size = Vector2(135, 45)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_usgiu")
 icon = ExtResource("5_oeodr")
 icon_alignment = 1
 expand_icon = true
 
-[node name="HoverableButton5" parent="OWButtonsPanel" instance=ExtResource("1_tc7em")]
-custom_minimum_size = Vector2(135, 30)
-layout_mode = 1
-offset_left = 612.0
-offset_top = 8.0
-offset_right = -9.0
-offset_bottom = -7.0
+[node name="HoverableButton5" parent="OWButtonsPanel/GeneralMenu" instance=ExtResource("1_tc7em")]
+custom_minimum_size = Vector2(135, 45)
+layout_mode = 2
 icon = ExtResource("6_lmlc7")
 icon_alignment = 1
 expand_icon = true
 
-[node name="HoverableButton" type="Button" parent="."]
+[node name="AttackMenu" type="HBoxContainer" parent="OWButtonsPanel"]
+visible = false
 layout_mode = 0
-offset_left = 1218.0
-offset_top = 604.0
-offset_right = 1295.0
-offset_bottom = 660.0
-scale = Vector2(0.75, 0.85)
+offset_left = 12.0
+offset_top = 8.0
+offset_right = 755.0
+offset_bottom = 53.0
+theme_override_constants/separation = 14
+
+[node name="HoverableButton" parent="OWButtonsPanel/AttackMenu" instance=ExtResource("1_tc7em")]
+custom_minimum_size = Vector2(135, 45)
+layout_mode = 2
+icon_alignment = 1
+expand_icon = true
+
+[node name="HoverableButton2" parent="OWButtonsPanel/AttackMenu" instance=ExtResource("1_tc7em")]
+custom_minimum_size = Vector2(135, 45)
+layout_mode = 2
+icon_alignment = 1
+expand_icon = true
+
+[node name="HoverableButton3" parent="OWButtonsPanel/AttackMenu" instance=ExtResource("1_tc7em")]
+custom_minimum_size = Vector2(135, 45)
+layout_mode = 2
+icon_alignment = 1
+expand_icon = true
+
+[node name="HoverableButton4" parent="OWButtonsPanel/AttackMenu" instance=ExtResource("1_tc7em")]
+custom_minimum_size = Vector2(135, 45)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_usgiu")
+icon_alignment = 1
+expand_icon = true
+
+[node name="HoverableButton5" parent="OWButtonsPanel/AttackMenu" instance=ExtResource("1_tc7em")]
+custom_minimum_size = Vector2(135, 45)
+layout_mode = 2
+icon_alignment = 1
+expand_icon = true
+
+[node name="Panel" type="Panel" parent="."]
+layout_mode = 0
+offset_left = 1051.0
+offset_top = 602.0
+offset_right = 1280.0
+offset_bottom = 658.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_6r4fv")
+
+[node name="HoverableButton" type="Button" parent="Panel"]
+layout_mode = 0
+offset_left = 174.0
+offset_top = 5.0
+offset_right = 238.0
+offset_bottom = 62.0
+scale = Vector2(0.75, 0.75)
 focus_mode = 0
-theme_override_styles/hover = SubResource("StyleBoxFlat_qpj2b")
-theme_override_styles/normal = SubResource("StyleBoxFlat_6r4fv")
+theme_override_styles/normal = SubResource("StyleBoxFlat_qpj2b")
 icon = ExtResource("7_usgiu")
 icon_alignment = 1
 script = ExtResource("7_hd7nt")
 metadata/_custom_type_script = "uid://dii4uukc3oe38"
 
-[connection signal="mouse_entered" from="HoverableButton" to="HoverableButton" method="_on_mouse_entered"]
-[connection signal="mouse_exited" from="HoverableButton" to="HoverableButton" method="_on_mouse_exited"]
+[node name="HoverableButton2" type="Button" parent="Panel"]
+layout_mode = 0
+offset_left = 118.0
+offset_top = 5.0
+offset_right = 182.0
+offset_bottom = 62.0
+scale = Vector2(0.75, 0.75)
+focus_mode = 0
+theme_override_styles/normal = SubResource("StyleBoxFlat_qpj2b")
+text = "Premiu
+Shop"
+icon_alignment = 1
+script = ExtResource("7_hd7nt")
+metadata/_custom_type_script = "uid://dii4uukc3oe38"
+
+[node name="HoverableButton3" type="Button" parent="Panel"]
+layout_mode = 0
+offset_left = 62.0
+offset_top = 5.0
+offset_right = 129.0
+offset_bottom = 62.0
+scale = Vector2(0.75, 0.75)
+focus_mode = 0
+theme_override_styles/normal = SubResource("StyleBoxFlat_qpj2b")
+text = "Discord
+?"
+icon_alignment = 1
+script = ExtResource("7_hd7nt")
+metadata/_custom_type_script = "uid://dii4uukc3oe38"
+
+[node name="HoverableButton4" type="Button" parent="Panel"]
+layout_mode = 0
+offset_left = 6.0
+offset_top = 5.0
+offset_right = 70.0
+offset_bottom = 62.0
+scale = Vector2(0.75, 0.75)
+focus_mode = 0
+theme_override_styles/normal = SubResource("StyleBoxFlat_qpj2b")
+text = "Auto
+"
+icon_alignment = 1
+script = ExtResource("7_hd7nt")
+metadata/_custom_type_script = "uid://dii4uukc3oe38"
+
+[connection signal="mouse_entered" from="Panel/HoverableButton" to="Panel/HoverableButton" method="_on_mouse_entered"]
+[connection signal="mouse_exited" from="Panel/HoverableButton" to="Panel/HoverableButton" method="_on_mouse_exited"]
+[connection signal="mouse_entered" from="Panel/HoverableButton2" to="Panel/HoverableButton2" method="_on_mouse_entered"]
+[connection signal="mouse_exited" from="Panel/HoverableButton2" to="Panel/HoverableButton2" method="_on_mouse_exited"]
+[connection signal="mouse_entered" from="Panel/HoverableButton3" to="Panel/HoverableButton3" method="_on_mouse_entered"]
+[connection signal="mouse_exited" from="Panel/HoverableButton3" to="Panel/HoverableButton3" method="_on_mouse_exited"]
+[connection signal="mouse_entered" from="Panel/HoverableButton4" to="Panel/HoverableButton4" method="_on_mouse_entered"]
+[connection signal="mouse_exited" from="Panel/HoverableButton4" to="Panel/HoverableButton4" method="_on_mouse_exited"]

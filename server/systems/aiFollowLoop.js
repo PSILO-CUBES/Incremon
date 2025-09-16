@@ -169,6 +169,7 @@ function tick() {
       Movement.onMoveStop(playerId, entityId)
 
       const ok = FSM.apply(playerId, entityId, "attackIntentStart")
+
       if (!ok || !ok.ok) continue
 
       const windowMs = windowFor(mob)
@@ -179,6 +180,7 @@ function tick() {
       try {
         defKey = Hitboxes.resolveEnemyHitboxDefKey(mob)
       } catch (_e) {}
+
       if (defKey) {
         let hb = null
         try {

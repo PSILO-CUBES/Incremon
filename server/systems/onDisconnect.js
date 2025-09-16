@@ -6,7 +6,7 @@ function onDisconnect(ws) {
 
   const { removed } = cleanupPlayerOnDisconnect(playerId);
   // (Optional) log
-  console.log(`[disconnect] cleaned ${removed} entities for player ${playerId}`);
+  console.log(`-* [disconnect] cleaned ${removed} entities for player ${playerId}`);
 }
 
 module.exports = onDisconnect;

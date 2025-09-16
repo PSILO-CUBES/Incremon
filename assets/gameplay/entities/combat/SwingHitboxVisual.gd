@@ -8,68 +8,76 @@ var sweep_degrees: float = 0.0
 var duration_ms: int = 0
 var base_angle: float = 0.0
 var elapsed_at_send_ms: int = 0
+var segments: int = 28
+var tick_ms: int = 16
 
 var _start_ms_local: int = 0
 var _u: float = 0.0
-var _segments: int = 28
 
 func setup(owner_node: Node2D, data: Dictionary) -> void:
 	attack_owner = owner_node
-	radius_px = float(data.get("radiusPx", 96.0))
-	arc_degrees = float(data.get("arcDegrees", 90.0))
-	sweep_degrees = float(data.get("sweepDegrees", 120.0))
-	duration_ms = int(data.get("durationMs", 400))
-	base_angle = float(data.get("baseAngle", 0.0))
-	elapsed_at_send_ms = int(data.get("elapsedAtSendMs", 0))
-	_start_ms_local = Time.get_ticks_msec()
-	set_process(true)
-	set_notify_transform(true)
 
-func _process(_dt: float) -> void:
-	if attack_owner == null or not is_instance_valid(attack_owner):
-		queue_free()
-		return
+	# Accept camelCase and snake_case from the server payload
+	radius_px = float(_get_any(data, ["radiusPx", "radius_px"], 0.0))
+	arc_degrees = float(_get_any(data, ["arcDegrees", "arc_degrees"], 0.0))
+	sweep_degrees = float(_get_any(data, ["sweepDegrees", "sweep_degrees"], 0.0))
+	duration_ms = int(_get_any(data, ["durationMs", "duration_ms"], 0))
+	base_angle = float(_get_any(data, ["baseAngle", "base_angle"], 0.0))
+	elapsed_at_send_ms = int(_get_any(data, ["elapsedAtSendMs", "elapsed_at_send_ms"], 0))
+	segments = int(_get_any(data, ["segments", "segments"], 28))
+	tick_ms = int(_get_any(data, ["tickMs", "tick_ms"], 16))
 
+	# Sync the local timebase to the server's start so the sweep lines up
+	_start_ms_local = Time.get_ticks_msec() - max(elapsed_at_send_ms, 0)
+	print("DEBUG visual start_ms_local =", _start_ms_local, " (ticks =", Time.get_ticks_msec(), ")")
+	_u = 0.0
+
+	# Start positioned at the owner's global position
 	global_position = attack_owner.global_position
 
+	set_process(true)
+	set_physics_process(false)
+	queue_redraw()
+
+func _process(_dt: float) -> void:
+	# Follow the owner so detection and visuals align while moving
+	if attack_owner != null:
+		global_position = attack_owner.global_position
+
 	var now_ms := Time.get_ticks_msec()
-	var elapsed_ms := int(now_ms - _start_ms_local)
-	var t_ms := elapsed_at_send_ms + elapsed_ms
-	if duration_ms <= 0:
-		_u = 1.0
+	var elapsed = max(0, now_ms - _start_ms_local)
+	if duration_ms > 0:
+		_u = clamp(float(elapsed) / float(duration_ms), 0.0, 1.0)
 	else:
-		_u = clamp(float(t_ms) / float(duration_ms), 0.0, 1.0)
+		_u = 1.0
 
 	queue_redraw()
 
+	# Cleanup when done
 	if _u >= 1.0:
 		queue_free()
 
 func _draw() -> void:
-	if attack_owner == null or not is_instance_valid(attack_owner):
+	if attack_owner == null:
 		return
 
-	var arc_rad := deg_to_rad(arc_degrees)
-	var sweep_rad := deg_to_rad(sweep_degrees)
-	var half_arc_rad := arc_rad * 0.5
-
-	var start_angle := base_angle - sweep_rad * 0.5
-	var current_angle := start_angle + sweep_rad * _u
-
+	var center_angle := _current_angle(base_angle, sweep_degrees, _u)
 	var pts := PackedVector2Array()
 	pts.append(Vector2.ZERO)
 
-	var i := 0
+	var seg_count = max(4, segments)
+	var half_arc = abs(arc_degrees) * 0.5
+	var start_deg = -half_arc
 	var step := 0.0
-	if _segments <= 0:
-		step = arc_rad
-	else:
-		step = arc_rad / float(_segments)
+	if seg_count > 0:
+		step = (arc_degrees) / float(seg_count)
 
-	var a := current_angle - half_arc_rad
-	while i <= _segments:
-		var px := cos(a) * radius_px
-		var py := sin(a) * radius_px
+	var i := 0
+	var a = start_deg
+	while i <= seg_count:
+		var ang := deg_to_rad(a) + center_angle
+		var px := cos(ang) * radius_px
+		var py := sin(ang) * radius_px
 		pts.append(Vector2(px, py))
 		a += step
 		i += 1
@@ -85,3 +93,17 @@ func _draw() -> void:
 		var outline := pts.duplicate()
 		outline.remove_at(0)
 		draw_polyline(outline, Color(1, 0, 0, alpha_line), 2.0, true)
+
+func _current_angle(base: float, sweep: float, u: float) -> float:
+	var sweep_rad = abs(sweep) * PI / 180.0
+	var start = base - sweep_rad * 0.5
+	return start + sweep_rad * u
+
+func _get_any(data: Dictionary, keys: Array, default_val) -> Variant:
+	var i := 0
+	while i < keys.size():
+		var k := str(keys[i])
+		if data.has(k):
+			return data[k]
+		i += 1
+	return default_val

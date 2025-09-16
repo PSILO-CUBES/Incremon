@@ -19,9 +19,11 @@ corner_radius_bottom_left = 15
 
 [node name="Enemy" instance=ExtResource("1_d2afg")]
 scale = Vector2(1.00279, 1)
+collision_mask = 2
 script = ExtResource("1_tnygo")
 
 [node name="HealthBarContainer" type="Control" parent="." index="8"]
+z_index = 3
 layout_mode = 3
 anchors_preset = 0
 offset_left = -20.0

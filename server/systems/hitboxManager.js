@@ -152,40 +152,50 @@ function listTargetsFor(hb) {
 function sendSpawnVizRect(ownerPlayerId, hb) {
   const ws = wsRegistry.get(ownerPlayerId)
   if (!wsRegistry.isOpen(ws)) return
-  const elapsedAtSendMs = now() - hb.startMs
-  wsRegistry.sendTo(ownerPlayerId, {
+
+  const elapsedAtSendMs = Date.now() - hb.startMs
+
+  const payload = {
     event: 'hitboxSpawned',
     entityId: hb.ownerEntityId,
-    shapeKey: hb.defKey,
+    shapeKey: hb.shapeType,
     startMs: hb.startMs,
     elapsedAtSendMs: elapsedAtSendMs,
     durationMs: hb.durationMs,
-    type: 'rect',
+    shapeType: 'rect',
     widthPx: hb.widthPx,
     heightPx: hb.heightPx,
     offsetPx: hb.offsetPx,
     baseAngle: hb.baseAngle
-  })
+  }
+
+  wsRegistry.sendTo(ownerPlayerId, payload)
 }
+
 
 function sendSpawnVizCone(ownerPlayerId, hb) {
   const ws = wsRegistry.get(ownerPlayerId)
   if (!wsRegistry.isOpen(ws)) return
-  const elapsedAtSendMs = now() - hb.startMs
-  wsRegistry.sendTo(ownerPlayerId, {
+
+  const elapsedAtSendMs = Date.now() - hb.startMs
+
+  const payload = {
     event: 'hitboxSpawned',
     entityId: hb.ownerEntityId,
-    shapeKey: hb.defKey,
+    shapeKey: hb.shapeType,
     startMs: hb.startMs,
     elapsedAtSendMs: elapsedAtSendMs,
     durationMs: hb.durationMs,
-    type: 'cone',
+    shapeType: 'cone',
     radiusPx: hb.radiusPx,
     arcDegrees: hb.arcDegrees,
     sweepDegrees: hb.sweepDegrees,
     baseAngle: hb.baseAngle
-  })
+  }
+
+  wsRegistry.sendTo(ownerPlayerId, payload)
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Geometry helpers (rect + cone intersection against circle targets)
@@ -210,7 +220,7 @@ function buildRectCorners(cx, cy, w, h, ox, baseAngle) {
     const py = corners[i].y
     const rx = px * cosA - py * sinA
     const ry = px * sinA + py * cosA
-    out.push({ x: cx + ox + rx, y: cy + oy + ry })
+    out.push({ x: cx + ox + rx, y: cy + ry })
   }
   return out
 }
@@ -268,46 +278,21 @@ function pointInOrientedRect(px, py, corners) {
   return true
 }
 
-function circleIntersectsSector(cx, cy, r, ox, oy, radius, arcDegrees, centerAngle) {
-  const halfArcRad = Math.abs((arcDegrees || 0) * Math.PI / 180) * 0.5
-  const arcRad = Math.abs((arcDegrees || 0) * Math.PI / 180)
-
-  if (r <= 0) {
-    const dx0 = cx - ox
-    const dy0 = cy - oy
-    const d0 = Math.hypot(dx0, dy0)
-    if (d0 > radius) return false
-    let ang0 = Math.atan2(dy0, dx0)
-    let da0 = ang0 - centerAngle
-    while (da0 > Math.PI) da0 -= Math.PI * 2
-    while (da0 < -Math.PI) da0 += Math.PI * 2
-    return Math.abs(da0) <= halfArcRad
-  }
-
-  const dx = cx - ox
-  const dy = cy - oy
+function circleInCone(px, py, r, ox, oy, radius, arcDegrees, centerAngle) {
+  // Step 1: distance check
+  const dx = px - ox
+  const dy = py - oy
   const dist = Math.hypot(dx, dy)
+  if (dist > radius + r) return false
 
-  if (!Number.isFinite(dist)) return false
-  if (dist <= r) return true
-
-  if ((dist - r) > radius) return false
-
-  let ang = Math.atan2(dy, dx)
-  let da = ang - centerAngle
+  // Step 2: angle check
+  const angleToTarget = Math.atan2(dy, dx)
+  let da = angleToTarget - centerAngle
   while (da > Math.PI) da -= Math.PI * 2
   while (da < -Math.PI) da += Math.PI * 2
 
-  let pad = 0
-  if (dist > 0) {
-    const s = r / dist
-    let clamped = s
-    if (clamped < -1) clamped = -1
-    if (clamped >  1) clamped =  1
-    pad = Math.acos(clamped)
-  }
-
-  return Math.abs(da) <= (halfArcRad + pad)
+  const halfArc = (arcDegrees * Math.PI / 180) * 0.5
+  return Math.abs(da) <= halfArc
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -437,7 +422,7 @@ function stepCone(hb) {
     if (hb.alreadyHit.has(key)) continue
 
     const r = Collision.radiusOf(row)
-    const hit = circleIntersectsSector(
+    const hit = circleInCone(
       Number(row.pos.x) || 0,
       Number(row.pos.y) || 0,
       Number(r) || 0,
@@ -451,6 +436,18 @@ function stepCone(hb) {
 
     hb.alreadyHit.add(key)
     applyHit(hb.ownerPlayerId, hb.ownerEntityId, key, hb.defKey)
+
+    
+    console.log(JSON.stringify({
+      tag: "hitboxHit",
+      hitboxId: hb.defKey,
+      ownerId: hb.ownerEntityId,
+      targetId: key,
+      uAtHit: (now() - hb.startMs) / hb.durationMs,
+      ownerPos: { x: cx, y: cy },
+      targetPos: { x: row.pos.x, y: row.pos.y },
+      targetRadius: r
+    }))
   }
 }
 
@@ -689,4 +686,4 @@ function applyHit(ownerPlayerId, attackerId, targetId, hitboxKey) {
   }
 }
 
-module.exports = { start, spawnSwing, spawnBox }
+module.exports = { start, spawnSwing, spawnBox, resolveEnemyHitboxDefKey }

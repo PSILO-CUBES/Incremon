@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cincy01lsj0mu"
-path="res://.godot/imported/switching-arrows.png-9114a11d8192dc4f7283ad6d83423b84.ctex"
+uid="uid://cd1dry0ltb7k8"
+path="res://.godot/imported/switching-arrows-2.png-6cf8fede7eadce65e760ef723128a77a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/utils/icons/switching-arrows.png"
-dest_files=["res://.godot/imported/switching-arrows.png-9114a11d8192dc4f7283ad6d83423b84.ctex"]
+source_file="res://assets/utils/icons/switching-arrows-2.png"
+dest_files=["res://.godot/imported/switching-arrows-2.png-6cf8fede7eadce65e760ef723128a77a.ctex"]
 
 [params]
 

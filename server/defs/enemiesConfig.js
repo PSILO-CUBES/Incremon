@@ -33,7 +33,7 @@ module.exports = {
         type: 'rect',
         widthPx: 36,
         heightPx: 48,
-        offsetPx: 16,
+        offsetPx: 32,
         durationMs: 1000,
         tickMs: 16
       }
