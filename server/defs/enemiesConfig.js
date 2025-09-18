@@ -24,14 +24,14 @@ module.exports = {
     tags: ['bones', 'basic'],
 
     attack: {
-      rangePx: 84,
+      rangePx: 72,
       cooldownMs: 1200,
       durationMs: 300,
 
       // Inline canonical hitbox (preferred)
       hitbox: {
         type: 'rect',
-        widthPx: 36,
+        widthPx: 48,
         heightPx: 48,
         offsetPx: 32,
         durationMs: 1000,

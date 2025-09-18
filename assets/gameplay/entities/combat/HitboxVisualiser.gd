@@ -15,61 +15,59 @@ func _on_hitbox_spawned(payload: Dictionary) -> void:
 	if entity_id == "":
 		return
 
-	var owner_node = _find_entity_node(get_tree().get_root(), entity_id)
-	if owner_node == null:
-		owner_node = get_tree().get_root()
-
-	var vtype := str(payload.get("shapeType", "cone"))
-	var visual: Node2D = null
-
-	if vtype == "rect":
-		if rect_scene != null:
-			visual = rect_scene.instantiate()
-		else:
-			visual = RectHitboxVisual.new()
-	else:
-		if swing_scene != null:
-			visual = swing_scene.instantiate()
-		else:
-			visual = SwingHitboxVisual.new()
-
-	if visual == null:
+	# Find the live owner entity in the scene
+	var world_root := get_tree().get_current_scene()
+	if world_root == null:
+		return
+	var owner := _find_entity_node(world_root, entity_id)
+	if owner == null:
 		return
 
-	# --- SIMPLE BUFFER FIX ---
-	# Derive how long the hitbox has been alive *at the moment we received it*
-	# using epoch ms. Then reuse your existing visual logic that backdates from
-	# elapsedAtSendMs by overriding it here.
-	var start_ms := int(payload.get("startMs", 0))
-	var epoch_now_ms := int(Time.get_unix_time_from_system() * 1000.0)
-	var elapsed_at_recv_ms := epoch_now_ms - start_ms
-	if elapsed_at_recv_ms < 0:
-		elapsed_at_recv_ms = 0
+	# Read common fields from server (server sends radians for baseAngle)
+	var shape_type := str(payload.get("shapeType", ""))
+	var elapsed_at_send_ms := int(payload.get("elapsedAtSendMs", 0))
+	var duration_ms := int(payload.get("durationMs", 0))
+	var base_angle := float(payload.get("baseAngle", 0.0))
 
-	# Overwrite the field your visuals already read for backdating
-	payload["elapsedAtSendMs"] = elapsed_at_recv_ms
-
-	# Optional debug to verify
-	var recv_now_ticks := Time.get_ticks_msec()
-	print(JSON.stringify({
-		"tag": "clientHitboxSpawned",
-		"entity_id": entity_id,
-		"shape_type": vtype,
-		"start_ms": start_ms,
-		"elapsed_at_recv_ms": elapsed_at_recv_ms,
-		"recv_now_ticks": recv_now_ticks
-	}))
-
-	if owner_node != null and owner_node.is_inside_tree():
-		owner_node.add_child(visual)
+	# Instance the correct visual
+	var visual: Node2D = null
+	if shape_type == "cone":
+		visual = swing_scene.instantiate()
+		visual.attack_owner = owner
+		visual.radius_px = float(_get_any(payload, ["radiusPx", "rangePx"], 96.0))
+		visual.arc_degrees = float(payload.get("arcDegrees", 90.0))
+		visual.sweep_degrees = float(payload.get("sweepDegrees", 120.0))
+		visual.duration_ms = duration_ms
+		visual.base_angle = base_angle
+		visual.elapsed_at_send_ms = elapsed_at_send_ms
+	elif shape_type == "rect":
+		visual = rect_scene.instantiate()
+		visual.attack_owner = owner
+		visual.width_px = float(payload.get("widthPx", 48.0))
+		visual.height_px = float(payload.get("heightPx", 48.0))
+		visual.offset_px = float(payload.get("offsetPx", 16.0))
+		visual.duration_ms = duration_ms
+		visual.base_angle = base_angle
+		visual.elapsed_at_send_ms = elapsed_at_send_ms
 	else:
-		add_child(visual)
+		return
 
-	if "setup" in visual:
-		visual.call("setup", owner_node, payload)
-	
-	print("DEBUG buffer filled: elapsedAtSendMs =", payload["elapsedAtSendMs"])
+	# Parent alongside the owner (same world layer) to avoid double transforms.
+	# We do not add as a child of the owner; the visual fetches owner.global_position to draw.
+	var parent := owner.get_parent()
+	if parent == null:
+		parent = world_root
+	parent.add_child(visual)
+	visual.z_index = owner.z_index + 1
 
+func _get_any(data: Dictionary, keys: Array, default_val) -> Variant:
+	var i := 0
+	while i < keys.size():
+		var k := str(keys[i])
+		if data.has(k):
+			return data[k]
+		i += 1
+	return default_val
 
 func _find_entity_node(root: Node, entity_id: String) -> Node2D:
 	if root == null:

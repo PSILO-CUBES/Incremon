@@ -204,7 +204,6 @@ function setDir(playerId, entityId, dir) {
   const sub = _sub(INTENTS, playerId)
   sub.set(String(entityId), _normDir(dir))
   const ent = Store.get(playerId, entityId)
-
   if (ent && ent.state !== "walk") {
     FSM.apply(playerId, entityId, "moveIntentStart")
   }
@@ -258,13 +257,6 @@ function step(dtSec) {
       // Post clamp & commit
       const bounded = _clampToMap(ent, resolved.x, resolved.y)
       Store.setPos(playerId, entityId, bounded)
-
-      console.log(JSON.stringify({
-        tag: "serverPos",
-        entityId: ent.entityId,
-        pos: bounded,
-        tick: Date.now()
-      }))
     }
 
     // Refresh LAST_POS snapshot at end of player tick

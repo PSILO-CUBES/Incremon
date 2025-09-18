@@ -4,7 +4,7 @@
 [ext_resource type="SpriteFrames" uid="uid://d86gp0e85vne" path="res://assets/gameplay/maps/props/PropsAnimation.tres" id="2_vwima"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_x2m36"]
-size = Vector2(357, 31)
+size = Vector2(357, 63.25)
 
 [node name="Crater" instance=ExtResource("1_x2m36")]
 
@@ -14,7 +14,7 @@ animation = &"craters"
 frame = 1
 
 [node name="CollisionShape2D" parent="." index="1"]
-position = Vector2(16.5, 0.25)
+position = Vector2(16.5, 16.375)
 shape = SubResource("RectangleShape2D_x2m36")
 
 [node name="Shadow" parent="." index="2"]

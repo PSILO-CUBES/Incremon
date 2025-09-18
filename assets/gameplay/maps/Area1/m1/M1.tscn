@@ -15,7 +15,7 @@ scale = Vector2(0.5, 0.5)
 texture = ExtResource("2_hbrh4")
 
 [node name="Crater" parent="." index="3" instance=ExtResource("3_q6rkg")]
-position = Vector2(258, 231)
+position = Vector2(458, 288)
 scale = Vector2(0.5, 0.5)
 
 [node name="Crater2" parent="." index="4" instance=ExtResource("3_q6rkg")]

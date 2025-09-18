@@ -158,7 +158,6 @@ function sendSpawnVizRect(ownerPlayerId, hb) {
   const payload = {
     event: 'hitboxSpawned',
     entityId: hb.ownerEntityId,
-    shapeKey: hb.shapeType,
     startMs: hb.startMs,
     elapsedAtSendMs: elapsedAtSendMs,
     durationMs: hb.durationMs,
@@ -182,7 +181,6 @@ function sendSpawnVizCone(ownerPlayerId, hb) {
   const payload = {
     event: 'hitboxSpawned',
     entityId: hb.ownerEntityId,
-    shapeKey: hb.shapeType,
     startMs: hb.startMs,
     elapsedAtSendMs: elapsedAtSendMs,
     durationMs: hb.durationMs,
@@ -201,26 +199,30 @@ function sendSpawnVizCone(ownerPlayerId, hb) {
 // Geometry helpers (rect + cone intersection against circle targets)
 // ─────────────────────────────────────────────────────────────────────────────
 function buildRectCorners(cx, cy, w, h, ox, baseAngle) {
-  const hw = Number(w) * 0.5
-  const hh = Number(h) * 0.5
-
-  const corners = [
-    { x: -hw, y: -hh },
-    { x:  hw, y: -hh },
-    { x:  hw, y:  hh },
-    { x: -hw, y:  hh }
-  ]
-
+  const halfW = w * 0.5
+  const halfH = h * 0.5
   const cosA = Math.cos(baseAngle)
   const sinA = Math.sin(baseAngle)
 
+  // forward (facing) offset rotated by baseAngle
+  const cxOff = cx + cosA * ox
+  const cyOff = cy + sinA * ox
+
+  // local rect corners (x = forward, y = right)
+  const local = [
+    { x:  halfW, y:  halfH },
+    { x: -halfW, y:  halfH },
+    { x: -halfW, y: -halfH },
+    { x:  halfW, y: -halfH }
+  ]
+
   const out = []
   for (let i = 0; i < 4; i++) {
-    const px = corners[i].x
-    const py = corners[i].y
-    const rx = px * cosA - py * sinA
-    const ry = px * sinA + py * cosA
-    out.push({ x: cx + ox + rx, y: cy + ry })
+    const lx = local[i].x
+    const ly = local[i].y
+    const rx =  lx * cosA - ly * sinA
+    const ry =  lx * sinA + ly * cosA
+    out.push({ x: cxOff + rx, y: cyOff + ry })
   }
   return out
 }
@@ -369,6 +371,20 @@ function stepRect(hb) {
     hb.baseAngle
   )
 
+  const cxRect = (rect[0].x + rect[1].x + rect[2].x + rect[3].x) / 4
+  const cyRect = (rect[0].y + rect[1].y + rect[2].y + rect[3].y) / 4
+  const cosA = Math.cos(hb.baseAngle)
+  const sinA = Math.sin(hb.baseAngle)
+
+  console.log(
+    'HB rect center offset',
+    'dx=', Number((cxRect - cx).toFixed(1)),
+    'dy=', Number((cyRect - cy).toFixed(1)),
+    'expectedDx=', Number((cosA * hb.offsetPx).toFixed(1)),
+    'expectedDy=', Number((sinA * hb.offsetPx).toFixed(1)),
+    'baseDeg=', Number((hb.baseAngle * 180 / Math.PI).toFixed(1))
+  )
+
   const candidates = listTargetsFor(hb)
   if (candidates.length === 0) return
 
@@ -436,18 +452,6 @@ function stepCone(hb) {
 
     hb.alreadyHit.add(key)
     applyHit(hb.ownerPlayerId, hb.ownerEntityId, key, hb.defKey)
-
-    
-    console.log(JSON.stringify({
-      tag: "hitboxHit",
-      hitboxId: hb.defKey,
-      ownerId: hb.ownerEntityId,
-      targetId: key,
-      uAtHit: (now() - hb.startMs) / hb.durationMs,
-      ownerPos: { x: cx, y: cy },
-      targetPos: { x: row.pos.x, y: row.pos.y },
-      targetRadius: r
-    }))
   }
 }
 
