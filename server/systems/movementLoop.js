@@ -1,55 +1,49 @@
 // server/systems/movementLoop.js
 //
-// Server-authoritative movement (fixed tick) with continuous collision vs MOVING entities
-// using a frozen world snapshot, then a static push-out vs MAP PROPS from colliderRegistry.
-//
-// Key fix in this version:
-//   The per-tick POS SNAPSHOT now includes { type, mobType, mapId, instanceId, entityId }
-//   so collision.js can correctly compute radii and map-scoped collisions.
-//   (Previously the snapshot only had { x, y, r }, which broke both entity and wall collisions.)
+// Server-authoritative movement (fixed tick) with continuous collision vs MOVING entities,
+// solving as swept AABB vs static AABBs from colliderRegistry.
 //
 // Public API:
 //   onMoveStart(playerId, entityId, dir)
 //   onMoveStop(playerId, entityId)
-//   setDir(playerId, entityId, dir)    // for server AI
+//   setDir(playerId, entityId, dir)
 //
-// Conventions: camelCase, no semicolons.
+// Conventions: camelCase, no semicolons
 
-const FSM              = require("../systems/fsm")
-const Store            = require("../world/entityStore")
-const Collide          = require("./collision")
-const ENEMIES          = require("../defs/enemiesConfig")
+const FSM = require("../systems/fsm")
+const Store = require("../world/entityStore")
+const Collide = require("./collision")
+const ENEMIES = require("../defs/enemiesConfig")
 const { DEFAULT_PLAYER_DATA } = require("../defs/playerDefaults")
-const Colliders        = require("../maps/colliderRegistry")
-const { getMapInfo }   = require("../maps/mapRegistry")
+const Colliders = require("../maps/colliderRegistry")
+const { getMapInfo } = require("../maps/mapRegistry")
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Ticking
-// ─────────────────────────────────────────────────────────────────────────────
-const TICK_MS = 50  // ~20Hz fixed tick
+const TICK_MS = 50  // ~20Hz
 
-// Per-player movement intents: Map<playerId, Map<entityId, {x,y}>>
 const INTENTS = new Map()
-
-// Last known positions (for velocity indexing): Map<playerId, Map<entityId, {x,y}>>
 const LAST_POS = new Map()
 
 function _sub(root, key) {
-  let m = root.get(String(key))
-  if (!m) { m = new Map(); root.set(String(key), m) }
+  const k = String(key)
+  let m = root.get(k)
+  if (!m) {
+    m = new Map()
+    root.set(k, m)
+  }
   return m
 }
 
 function _normDir(d) {
-  const x = Number(d?.x) || 0
-  const y = Number(d?.y) || 0
+  let x = 0
+  let y = 0
+  if (d && typeof d.x === "number") x = d.x
+  if (d && typeof d.y === "number") y = d.y
   const len = Math.hypot(x, y)
-  if (len <= 1e-6) return { x: 0, y: 0 }
-  // already normalized on client, but guard anyway
+  if (len <= 0.000001) return { x: 0, y: 0 }
   const nx = x / len
   const ny = y / len
-  // tiny deadzone to avoid micro creep
-  return (Math.abs(nx) < 1e-4 && Math.abs(ny) < 1e-4) ? { x: 0, y: 0 } : { x: nx, y: ny }
+  if (Math.abs(nx) < 0.0001 && Math.abs(ny) < 0.0001) return { x: 0, y: 0 }
+  return { x: nx, y: ny }
 }
 
 function _speedOf(ent) {
@@ -59,15 +53,19 @@ function _speedOf(ent) {
     const s = ent.stats || {}
     const spd = Number(s.spd)
     if (Number.isFinite(spd)) return spd
-    return Number(DEFAULT_PLAYER_DATA?.spd) || 200
+    const defSpd = Number(DEFAULT_PLAYER_DATA && DEFAULT_PLAYER_DATA.spd)
+    if (Number.isFinite(defSpd)) return defSpd
+    return 200
   }
 
   if (ent.type === "mob") {
     const s = ent.stats || {}
     const spd = Number(s.spd)
     if (Number.isFinite(spd)) return spd
-    const def = ENEMIES[ent.mobType]
-    return Number(def?.spd) || 50
+    const def = ENEMIES ? ENEMIES[ent.mobType] : undefined
+    const defSpd = Number(def && def.spd)
+    if (Number.isFinite(defSpd)) return defSpd
+    return 50
   }
 
   return 0
@@ -77,69 +75,110 @@ function _integrate(ent, dir, dtSec) {
   const spd = _speedOf(ent)
   const dx = dir.x * spd * dtSec
   const dy = dir.y * spd * dtSec
-  const x0 = Number(ent?.pos?.x) || 0
-  const y0 = Number(ent?.pos?.y) || 0
+  let x0 = 0
+  let y0 = 0
+  if (ent && ent.pos && typeof ent.pos.x === "number") x0 = Number(ent.pos.x)
+  if (ent && ent.pos && typeof ent.pos.y === "number") y0 = Number(ent.pos.y)
   return { prev: { x: x0, y: y0 }, wish: { x: x0 + dx, y: y0 + dy } }
 }
 
-// Clamp to map bounds, preferring collider JSON bounds, padded by entity radius.
+// AABB clamp using half-extents hx, hy
 function _clampToMap(ent, x, y) {
-  const radius = Collide.radiusOf(ent) || 0
+  const size = Collide.halfExtentsOf(ent)
+  const hx = size.hx
+  const hy = size.hy
 
-  const bounds = Colliders.getMapBounds(ent?.mapId)
-  if (bounds && Number.isFinite(bounds.x)) {
-    const minX = bounds.x + radius
-    const minY = bounds.y + radius
-    const maxX = bounds.x + bounds.w - radius
-    const maxY = bounds.y + bounds.h - radius
-    return {
-      x: Math.min(Math.max(x, minX), maxX),
-      y: Math.min(Math.max(y, minY), maxY),
+  const eidStr = ent && ent.entityId ? String(ent.entityId) : ""
+  const b = Colliders.getMapBounds(ent && ent.mapId ? ent.mapId : undefined)
+  if (b && Number.isFinite(b.x) && Number.isFinite(b.w) && Number.isFinite(b.h)) {
+    const minX = b.x + hx
+    const minY = b.y + hy
+    const maxX = b.x + b.w - hx
+    const maxY = b.y + b.h - hy
+    const nx = Math.min(Math.max(x, minX), maxX)
+    const ny = Math.min(Math.max(y, minY), maxY)
+    if (nx !== x || ny !== y) {
+      console.log("[CLAMP] eid=" + eidStr + " from=(" + x + "," + y + ") to=(" + nx + "," + ny + ") hx=" + hx + " hy=" + hy)
     }
+    return { x: nx, y: ny }
   }
 
-  // Fallback to mapRegistry info if bounds file is absent
-  const info = getMapInfo(ent?.mapId)
-  if (!info) return { x, y }
-  const minX = 0 + radius, minY = 0 + radius
-  const maxX = (Number(info?.widthPx)  || 4096) - radius
-  const maxY = (Number(info?.heightPx) || 4096) - radius
-  return {
-    x: Math.min(Math.max(x, minX), maxX),
-    y: Math.min(Math.max(y, minY), maxY),
+  const info = getMapInfo(ent && ent.mapId ? ent.mapId : undefined)
+  if (!info) return { x: x, y: y }
+
+  const widthPx = Number(info.widthPx)
+  const heightPx = Number(info.heightPx)
+  if (Number.isFinite(widthPx) && Number.isFinite(heightPx) && widthPx > 0 && heightPx > 0) {
+    const minX = 0 + hx
+    const minY = 0 + hy
+    const maxX = widthPx - hx
+    const maxY = heightPx - hy
+    const nx = Math.min(Math.max(x, minX), maxX)
+    const ny = Math.min(Math.max(y, minY), maxY)
+    if (nx !== x || ny !== y) {
+      console.log("[CLAMP] eid=" + eidStr + " from=(" + x + "," + y + ") to=(" + nx + "," + ny + ") hx=" + hx + " hy=" + hy)
+    }
+    return { x: nx, y: ny }
   }
+
+  return { x: x, y: y }
 }
 
-// Build per-player relative velocity index (pixels moved last tick).
 function _buildVelocityIndex(playerId) {
   const vel = new Map()
   const last = _sub(LAST_POS, playerId)
 
   Store.each(playerId, (eid, ent) => {
-    const x = Number(ent?.pos?.x) || 0
-    const y = Number(ent?.pos?.y) || 0
-    const prev = last.get(String(eid)) || { x, y }
-    vel.set(String(eid), { x: x - prev.x, y: y - prev.y })
+    let x = 0
+    let y = 0
+    if (ent && ent.pos && typeof ent.pos.x === "number") x = Number(ent.pos.x)
+    if (ent && ent.pos && typeof ent.pos.y === "number") y = Number(ent.pos.y)
+    const key = String(eid)
+    const prev = last.get(key) || { x: x, y: y }
+    vel.set(key, { x: x - prev.x, y: y - prev.y })
   })
 
   return vel
 }
 
-// Build a frozen position snapshot for this tick so sweeps don't read live-mutated positions.
-// IMPORTANT: include the metadata that collision.js needs:
-//   type, mobType, mapId, instanceId, entityId
+// Snapshot includes collider half-extents for AABB sweep
 function _buildPosIndex(playerId) {
   const pos = new Map()
   Store.each(playerId, (eid, ent) => {
-    pos.set(String(eid), {
-      x          : Number(ent?.pos?.x) || 0,
-      y          : Number(ent?.pos?.y) || 0,
-      r          : Collide.radiusOf(ent) || 0, // not used directly by collision.js, but handy
-      type       : ent?.type,
-      mobType    : ent?.mobType,
-      mapId      : ent?.mapId,
-      instanceId : ent?.instanceId,
-      entityId   : ent?.entityId ?? String(eid),
+    const key = String(eid)
+
+    let x = 0
+    let y = 0
+    if (ent && ent.pos && typeof ent.pos.x === "number") x = Number(ent.pos.x)
+    if (ent && ent.pos && typeof ent.pos.y === "number") y = Number(ent.pos.y)
+
+    const he = Collide.halfExtentsOf(ent)
+
+    let type = undefined
+    if (ent && ent.type) type = ent.type
+
+    let mobType = undefined
+    if (ent && ent.mobType) mobType = ent.mobType
+
+    let mapId = undefined
+    if (ent && ent.mapId) mapId = ent.mapId
+
+    let instanceId = undefined
+    if (ent && ent.instanceId) instanceId = ent.instanceId
+
+    let entityId = key
+    if (ent && ent.entityId) entityId = ent.entityId
+
+    pos.set(key, {
+      x: x,
+      y: y,
+      hx: he.hx,
+      hy: he.hy,
+      type: type,
+      mobType: mobType,
+      mapId: mapId,
+      instanceId: instanceId,
+      entityId: entityId
     })
   })
   return pos
@@ -148,9 +187,11 @@ function _buildPosIndex(playerId) {
 function _snapshotPositions(playerId) {
   const last = _sub(LAST_POS, playerId)
   Store.each(playerId, (eid, ent) => {
-    const x = Number(ent?.pos?.x) || 0
-    const y = Number(ent?.pos?.y) || 0
-    last.set(String(eid), { x, y })
+    let x = 0
+    let y = 0
+    if (ent && ent.pos && typeof ent.pos.x === "number") x = Number(ent.pos.x)
+    if (ent && ent.pos && typeof ent.pos.y === "number") y = Number(ent.pos.y)
+    last.set(String(eid), { x: x, y: y })
   })
 }
 
@@ -158,34 +199,35 @@ function _snapshotPositions(playerId) {
 // Movement API
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Start/refresh a movement intent for an entity.
 function onMoveStart(playerId, entityId, dir) {
-  if (!playerId || !entityId) return
+  if (!playerId) return
+  if (!entityId) return
 
   const ent = Store.get(playerId, entityId)
   if (!ent) return
 
-  // If attacking, queue the move to resume after attack
   if (ent.state === "attack") {
     try {
       const AttackLoop = require("./attackLoop")
       if (ent.type === "player") {
-        AttackLoop.queueMove(playerId, entityId, _normDir(dir))
+        const nd = _normDir(dir)
+        AttackLoop.queueMove(playerId, entityId, nd)
       }
     } catch (_e) {}
     return
   }
 
-  _sub(INTENTS, playerId).set(String(entityId), _normDir(dir))
+  const nd = _normDir(dir)
+  _sub(INTENTS, playerId).set(String(entityId), nd)
 
   if (ent.state !== "walk") {
     FSM.apply(playerId, entityId, "moveIntentStart")
   }
 }
 
-// Stop movement for an entity.
 function onMoveStop(playerId, entityId) {
-  if (!playerId || !entityId) return
+  if (!playerId) return
+  if (!entityId) return
 
   const ent = Store.get(playerId, entityId)
   if (!ent) return
@@ -198,11 +240,12 @@ function onMoveStop(playerId, entityId) {
   }
 }
 
-// For server AI (e.g., mobs) to steer continuously without client input.
 function setDir(playerId, entityId, dir) {
-  if (!playerId || !entityId) return
+  if (!playerId) return
+  if (!entityId) return
+  const nd = _normDir(dir)
   const sub = _sub(INTENTS, playerId)
-  sub.set(String(entityId), _normDir(dir))
+  sub.set(String(entityId), nd)
   const ent = Store.get(playerId, entityId)
   if (ent && ent.state !== "walk") {
     FSM.apply(playerId, entityId, "moveIntentStart")
@@ -214,15 +257,17 @@ function setDir(playerId, entityId, dir) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function step(dtSec) {
-  // Build per-player indexes BEFORE applying this frame's moves.
   const velIndexes = new Map()
   const posIndexes = new Map()
-  for (const playerId of INTENTS.keys()) {
-    velIndexes.set(playerId, _buildVelocityIndex(playerId))
-    posIndexes.set(playerId, _buildPosIndex(playerId))
+  for (const pid of INTENTS.keys()) {
+    velIndexes.set(pid, _buildVelocityIndex(pid))
+    posIndexes.set(pid, _buildPosIndex(pid))
   }
 
-  for (const [playerId, sub] of INTENTS) {
+  for (const pair of INTENTS) {
+    const playerId = pair[0]
+    const sub = pair[1]
+
     const ids = Array.from(sub.keys())
     const velIndex = velIndexes.get(playerId) || new Map()
     const posIndex = posIndexes.get(playerId) || new Map()
@@ -230,36 +275,60 @@ function step(dtSec) {
     for (let i = 0; i < ids.length; i++) {
       const entityId = ids[i]
       const ent = Store.get(playerId, entityId)
-      if (!ent) { sub.delete(entityId); continue }
+      if (!ent) {
+        sub.delete(entityId)
+        continue
+      }
 
-      // Only move entities in 'walk' (attack blocks movement)
       if (ent.state !== "walk") continue
 
       const dir = sub.get(entityId) || { x: 0, y: 0 }
-      if ((dir.x === 0 && dir.y === 0)) continue
+      if (dir.x === 0 && dir.y === 0) continue
 
-      // Integrate desired motion
-      const { prev, wish } = _integrate(ent, dir, dtSec)
+      const result = _integrate(ent, dir, dtSec)
+      const prev = result.prev
+      const wish = result.wish
 
-      // Pre-clamp to bounds to avoid giant vectors
+      console.log("[MOVE pre] eid=" + entityId + " prev=(" + prev.x + "," + prev.y + ") wish=(" + wish.x + "," + wish.y + ")")
+
       const clampedWish = _clampToMap(ent, wish.x, wish.y)
 
-      // Resolve with frozen snapshot (dynamic sweep uses posIndex + velIndex)
-      const resolved = Collide.resolveWithSubsteps(
-        playerId,
-        posIndex.get(String(entityId)) || ent, // movingEnt meta for radius/mapId/instanceId/type
-        prev,
-        clampedWish,
-        velIndex,
-        posIndex
-      )
+      const movingMeta = posIndex.get(String(entityId))
+      let resolved = null
+      if (movingMeta) {
+        resolved = Collide.resolveWithSubsteps(
+          playerId,
+          movingMeta,   // includes hx, hy, mapId
+          prev,
+          clampedWish,
+          velIndex,
+          posIndex
+        )
 
-      // Post clamp & commit
+        if (typeof movingMeta.hx === "number" && typeof movingMeta.hy === "number") {
+          console.log("[MOVING META] eid=" + entityId + " mapId=" + String(movingMeta.mapId) + " hx=" + movingMeta.hx + " hy=" + movingMeta.hy)
+        }
+      } else {
+        console.log("[WARN] no movingMeta for eid=" + entityId + " — using clampedWish directly")
+        resolved = { x: clampedWish.x, y: clampedWish.y }
+      }
+
+      console.log("[MOVE res] eid=" + entityId + " resolved=(" + resolved.x + "," + resolved.y + ")")
+
+      const deviatesX = Math.abs(resolved.x - wish.x) > 0.1
+      const deviatesY = Math.abs(resolved.y - wish.y) > 0.1
+      if (deviatesX || deviatesY) {
+        const he = Collide.halfExtentsOf(ent)
+        const mapId = ent && ent.mapId ? String(ent.mapId) : "unknown"
+        console.log("[META] eid=" + entityId + " mapId=" + mapId + " hx=" + he.hx + " hy=" + he.hy)
+        console.log("[COLLISION] eid=" + entityId + " wish=(" + wish.x + "," + wish.y + ") got=(" + resolved.x + "," + resolved.y + ")")
+      }
+
       const bounded = _clampToMap(ent, resolved.x, resolved.y)
-      Store.setPos(playerId, entityId, bounded)
+
+      Store.setPos(playerId, entityId, { x: bounded.x, y: bounded.y })
     }
 
-    // Refresh LAST_POS snapshot at end of player tick
     _snapshotPositions(playerId)
   }
 }
@@ -267,20 +336,20 @@ function step(dtSec) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Boot loop
 // ─────────────────────────────────────────────────────────────────────────────
+
 let _last = Date.now()
 setInterval(() => {
   const now = Date.now()
-  const dtMs = Math.max(1, now - _last)
+  let dtMs = now - _last
+  if (dtMs < 1) dtMs = 1
   _last = now
   step(dtMs / 1000)
 }, TICK_MS)
 
-// ─────────────────────────────────────────────────────────────────────────────
 module.exports = {
   onMoveStart,
   onMoveStop,
   setDir,
-  // exposed for tests
   _INTENTS: INTENTS,
-  _step: step,
+  _step: step
 }

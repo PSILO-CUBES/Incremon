@@ -371,20 +371,6 @@ function stepRect(hb) {
     hb.baseAngle
   )
 
-  const cxRect = (rect[0].x + rect[1].x + rect[2].x + rect[3].x) / 4
-  const cyRect = (rect[0].y + rect[1].y + rect[2].y + rect[3].y) / 4
-  const cosA = Math.cos(hb.baseAngle)
-  const sinA = Math.sin(hb.baseAngle)
-
-  console.log(
-    'HB rect center offset',
-    'dx=', Number((cxRect - cx).toFixed(1)),
-    'dy=', Number((cyRect - cy).toFixed(1)),
-    'expectedDx=', Number((cosA * hb.offsetPx).toFixed(1)),
-    'expectedDy=', Number((sinA * hb.offsetPx).toFixed(1)),
-    'baseDeg=', Number((hb.baseAngle * 180 / Math.PI).toFixed(1))
-  )
-
   const candidates = listTargetsFor(hb)
   if (candidates.length === 0) return
 
